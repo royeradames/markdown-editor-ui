@@ -1,0 +1,43 @@
+.example-spacer {
+  flex: 1 1 auto;
+}
+
+.container{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+}
+
+p{
+  margin: 0;
+}
+.docs{
+  height: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 15px;
+
+  &:first-child{
+    grid-row: span 2;
+  }
+  &-icon{
+    grid-row: span 2;
+  }
+}
+
+.single-line{
+  display: flex;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.menu-content{
+  display: grid;
+  padding: 24px;
+  grid-template-rows: auto 1fr auto;
+  height: calc(100% - 48px);
+}
+
