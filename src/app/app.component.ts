@@ -1,5 +1,5 @@
 import {Component, OnInit} from '@angular/core';
-import {FormControl, FormGroup} from "@angular/forms";
+import {UntypedFormControl, UntypedFormGroup} from "@angular/forms";
 
 @Component({
   selector: 'app-root',
@@ -9,8 +9,8 @@ import {FormControl, FormGroup} from "@angular/forms";
 export class AppComponent implements OnInit {
   title = 'my-sassy-app';
 
-  form = new FormGroup({
-    themeToggle: new FormControl(false)
+  form = new UntypedFormGroup({
+    themeToggle: new UntypedFormControl(false)
   })
   docs = [
     {
