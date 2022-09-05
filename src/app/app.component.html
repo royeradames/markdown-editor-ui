@@ -1,4 +1,4 @@
-<mat-drawer-container class="container" autosize hasBackdrop="false" [formGroup]="form">
+<mat-drawer-container [formGroup]="form" autosize class="container" hasBackdrop="false">
   <mat-drawer #drawer class="sidenav" mode="push">
     <!-- navigation menu content -->
     <div class="menu-content">
@@ -23,20 +23,20 @@
       </article>
       <article class="single-line">
         <mat-icon style="transform: scaleX(-1);">brightness_3</mat-icon>
-        <mat-slide-toggle formControlName="themeToggle" color="primary"></mat-slide-toggle>
+        <mat-slide-toggle color="primary" formControlName="themeToggle"></mat-slide-toggle>
         <mat-icon>wb_sunny</mat-icon>
       </article>
     </div>
   </mat-drawer>
-    <!-- adding tool bar -->
+  <!-- adding tool bar -->
   <mat-toolbar color="primary">
-    <button mat-icon-button (click)="drawer.toggle()">
+    <button (click)="drawer.toggle()" mat-icon-button>
       <mat-icon>{{ drawer.opened ? 'close' : 'menu'}} </mat-icon>
     </button>
     <mat-form-field>
       <div class="doc-name">
         <mat-icon>insert_drive_file</mat-icon>
-        <input [value]="currentDoc.title" matInput style="width: max-content">
+        <input formControlName="title" matInput>
       </div>
     </mat-form-field>
 
@@ -44,7 +44,7 @@
     <button (click)="onDelete()" mat-icon-button>
       <mat-icon>delete</mat-icon>
     </button>
-    <button color="accent" mat-raised-button>
+    <button (click)="onSave()" color="accent" mat-raised-button>
       <mat-icon>save</mat-icon>
     </button>
   </mat-toolbar>
@@ -55,7 +55,9 @@
       <mat-icon class="doc-header-icon">{{isEdit ? 'visibility' : 'visibility_off'}}</mat-icon>
     </mat-toolbar>
 
-    <textarea [value]="currentDoc.content"></textarea>
+    <mat-card>
+      <textarea formControlName="content" matInput style="height: 100%;"></textarea>
+    </mat-card>
   </article>
 
   <article *ngIf="!isEdit" class="doc">
@@ -67,7 +69,8 @@
       <mat-card>
         <markdown
           (ready)="onReady()"
-          [data]="currentDoc.content">
+          [data]="currentDoc.content"
+        >
         </markdown>
       </mat-card>
     </div>
