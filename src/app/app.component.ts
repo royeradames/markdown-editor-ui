@@ -9,7 +9,7 @@ import {OnDeleteDialogComponent} from "./on-delete/on-delete-dialog.component";
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
-
+  isEdit = true;
   constructor(public dialog: MatDialog) {
   }
 

@@ -44,7 +44,10 @@
       </button>
     </mat-toolbar>
 
-    <!-- where the router content is display -->
-    <router-outlet></router-outlet>
+    <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
+      <span class="mat-caption">{{isEdit ? 'MARKDOWN' : 'PREVIEW'}}</span>
+      <mat-icon class="doc-header-icon">{{isEdit ? 'visibility' : 'visibility_off'}}</mat-icon>
+    </mat-toolbar>
+
   </div>
 </mat-drawer-container>

@@ -41,3 +41,9 @@ p{
   height: calc(100% - 48px);
 }
 
+.doc {
+  &-header {
+    justify-content: space-between;
+    cursor: pointer;
+  }
+}
