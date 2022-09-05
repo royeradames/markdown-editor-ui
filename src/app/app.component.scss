@@ -37,7 +37,7 @@ p{
 .menu-content{
   display: grid;
   padding: 24px;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto max-content 1fr auto;
   height: calc(100% - 48px);
 }
 

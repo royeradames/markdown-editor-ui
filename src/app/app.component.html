@@ -1,26 +1,27 @@
 <mat-drawer-container [formGroup]="form" autosize class="container" hasBackdrop="false">
-  <mat-drawer #drawer class="sidenav" mode="push">
+  <mat-drawer #drawer class="sidenav" mode="push" opened="true">
     <!-- navigation menu content -->
     <div class="menu-content">
       <h1>MARKDOWN</h1>
-      <article>
-        <h2>MY DOCUMENTS</h2>
-        <button (click)="onAdd(); drawer.toggle()" color="accent" mat-raised-button>
-          <mat-icon>add</mat-icon>
-          New Document
-        </button>
-        <mat-action-list>
-          <ng-container *ngFor="let item of docs">
-            <button (click)="goToDoc(item)" mat-list-item>
-              <div class="docs">
-                <mat-icon class="docs-icon">insert_drive_file</mat-icon>
-                <p class="mat-caption">{{item.date | date}}</p>
-                <p class="mat-body-2">{{item.title}}</p>
-              </div>
-            </button>
-          </ng-container>
-        </mat-action-list>
-      </article>
+      <!--      <article>-->
+      <h2>MY DOCUMENTS</h2>
+      <!--        drawer.toggle()-->
+      <button (click)="onAdd(); " color="accent" mat-raised-button>
+        <mat-icon>add</mat-icon>
+        New Document
+      </button>
+      <mat-action-list style="overflow: auto">
+        <ng-container *ngFor="let item of docs">
+          <button (click)="goToDoc(item)" mat-list-item>
+            <div class="docs">
+              <mat-icon class="docs-icon">insert_drive_file</mat-icon>
+              <p class="mat-caption">{{item.date | date}}</p>
+              <p class="mat-body-2">{{item.title}}</p>
+            </div>
+          </button>
+        </ng-container>
+      </mat-action-list>
+      <!--      </article>-->
       <article class="single-line">
         <mat-icon style="transform: scaleX(-1);">brightness_3</mat-icon>
         <mat-slide-toggle color="primary" formControlName="themeToggle"></mat-slide-toggle>
