@@ -7,7 +7,6 @@ import {UntypedFormControl, UntypedFormGroup} from "@angular/forms";
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
-  title = 'my-sassy-app';
 
   form = new UntypedFormGroup({
     themeToggle: new UntypedFormControl(false)
