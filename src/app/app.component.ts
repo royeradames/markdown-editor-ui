@@ -38,9 +38,10 @@ export class AppComponent implements OnInit {
       width: '343px',
     });
 
-    dialogRef.afterClosed().subscribe((result: undefined | true) => {
-      console.log(result);
-      console.log('The dialog was closed');
+    dialogRef.afterClosed().subscribe((_result: undefined | true) => {
+      this.docs = this.docs.filter(doc => doc.id !== this.currentDoc.id)
+      //todo: what to do when you delete a doc?
+      this.currentDoc = {id: 0, title: '', content: '', date: ''}
     });
   }
 
