@@ -13,10 +13,13 @@ import {MatListModule} from "@angular/material/list";
 import {CommonModule} from "@angular/common";
 import {MatSlideToggleModule} from "@angular/material/slide-toggle";
 import {ReactiveFormsModule} from "@angular/forms";
+import {MatDialogModule} from "@angular/material/dialog";
+import {OnDeleteDialogComponent} from './on-delete/on-delete-dialog.component';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    OnDeleteDialogComponent
   ],
   imports: [
     CommonModule,
@@ -32,6 +35,7 @@ import {ReactiveFormsModule} from "@angular/forms";
     MatListModule,
     MatSlideToggleModule,
     ReactiveFormsModule,
+    MatDialogModule,
   ],
   providers: [],
   bootstrap: [AppComponent]
