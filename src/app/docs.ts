@@ -1,11 +1,6 @@
-export interface DocInterface {
-  id: number
-  date: string;
-  title: string;
-  content: string;
-}
+import {DocModel} from "./model/doc-model";
 
-export const docs: DocInterface[] = [
+export const docs: DocModel[] = [
   {
     id: 1,
     date: '2020-01-01',
