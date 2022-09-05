@@ -18,6 +18,7 @@ import {OnDeleteDialogComponent} from './on-delete/on-delete-dialog.component';
 import {MatCardModule} from "@angular/material/card";
 import {MarkdownModule} from "ngx-markdown";
 import {MatInputModule} from "@angular/material/input";
+import {MatFormFieldModule} from "@angular/material/form-field";
 
 @NgModule({
   declarations: [
@@ -42,6 +43,7 @@ import {MatInputModule} from "@angular/material/input";
     MatDialogModule,
     MatCardModule,
     MatInputModule,
+    MatFormFieldModule,
   ],
   providers: [],
   bootstrap: [AppComponent]
