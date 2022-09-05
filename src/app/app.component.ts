@@ -2,6 +2,7 @@ import {Component, OnInit} from '@angular/core';
 import {UntypedFormControl, UntypedFormGroup} from "@angular/forms";
 import {MatDialog} from "@angular/material/dialog";
 import {OnDeleteDialogComponent} from "./on-delete/on-delete-dialog.component";
+import {docs} from './docs'
 
 @Component({
   selector: 'app-root',
@@ -10,22 +11,15 @@ import {OnDeleteDialogComponent} from "./on-delete/on-delete-dialog.component";
 })
 export class AppComponent implements OnInit {
   isEdit = true;
+
   constructor(public dialog: MatDialog) {
   }
 
   form = new UntypedFormGroup({
     themeToggle: new UntypedFormControl(false)
   })
-  docs = [
-    {
-      date: '2020-01-01',
-      name: 'untitled-document.md',
-    },
-    {
-      date: '2010-01-01',
-      name: 'welcome.md',
-    },
-  ]
+  docs = docs;
+  currentDoc: string = this.docs[1].text;
 
   goToDoc() {
     console.log('go to doc');
@@ -48,5 +42,9 @@ export class AppComponent implements OnInit {
       console.log(result);
       console.log('The dialog was closed');
     });
+  }
+
+  onReady() {
+    console.log('onReady');
   }
 }

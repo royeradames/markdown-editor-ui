@@ -15,6 +15,8 @@ import {MatSlideToggleModule} from "@angular/material/slide-toggle";
 import {ReactiveFormsModule} from "@angular/forms";
 import {MatDialogModule} from "@angular/material/dialog";
 import {OnDeleteDialogComponent} from './on-delete/on-delete-dialog.component';
+import {MatCardModule} from "@angular/material/card";
+import {MarkdownModule} from "ngx-markdown";
 
 @NgModule({
   declarations: [
@@ -26,6 +28,7 @@ import {OnDeleteDialogComponent} from './on-delete/on-delete-dialog.component';
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,
+    MarkdownModule.forRoot(),
     //Angular Material
     MatToolbarModule,
     MatIconModule,
@@ -36,6 +39,7 @@ import {OnDeleteDialogComponent} from './on-delete/on-delete-dialog.component';
     MatSlideToggleModule,
     ReactiveFormsModule,
     MatDialogModule,
+    MatCardModule,
   ],
   providers: [],
   bootstrap: [AppComponent]

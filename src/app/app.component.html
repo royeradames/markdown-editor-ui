@@ -28,7 +28,6 @@
       </article>
     </div>
   </mat-drawer>
-  <div class="sidenav-content">
     <!-- adding tool bar -->
     <mat-toolbar color="primary">
       <button mat-icon-button (click)="drawer.toggle()">
@@ -44,10 +43,27 @@
       </button>
     </mat-toolbar>
 
+  <article *ngIf="isEdit" class="doc">
     <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
-      <span class="mat-caption">{{isEdit ? 'MARKDOWN' : 'PREVIEW'}}</span>
+      <span class="mat-caption">MARKDOWN</span>
       <mat-icon class="doc-header-icon">{{isEdit ? 'visibility' : 'visibility_off'}}</mat-icon>
     </mat-toolbar>
 
-  </div>
+    <textarea [value]="currentDoc"></textarea>
+  </article>
+
+  <article *ngIf="!isEdit" class="doc">
+    <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
+      <span class="mat-caption">PREVIEW</span>
+      <mat-icon class="doc-header-icon">visibility_off</mat-icon>
+    </mat-toolbar>
+    <div class="doc-content">
+      <mat-card>
+        <markdown
+          (ready)="onReady()"
+          [data]="currentDoc">
+        </markdown>
+      </mat-card>
+    </div>
+  </article>
 </mat-drawer-container>

@@ -42,6 +42,10 @@ p{
 }
 
 .doc {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+
   &-header {
     justify-content: space-between;
     cursor: pointer;
