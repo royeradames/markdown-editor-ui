@@ -50,4 +50,10 @@ p{
     justify-content: space-between;
     cursor: pointer;
   }
+
+  &-name {
+    display: grid;
+    grid-template-columns: auto max-content;
+    column-gap: 10px;
+  }
 }

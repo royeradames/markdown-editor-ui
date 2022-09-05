@@ -5,17 +5,17 @@
       <h1>MARKDOWN</h1>
       <article>
         <h2>MY DOCUMENTS</h2>
-        <button mat-raised-button color="accent">
+        <button (click)="onAdd(); drawer.toggle()" color="accent" mat-raised-button>
           <mat-icon>add</mat-icon>
           New Document
         </button>
         <mat-action-list>
           <ng-container *ngFor="let item of docs">
-            <button mat-list-item (click)="goToDoc()">
+            <button (click)="goToDoc(item)" mat-list-item>
               <div class="docs">
                 <mat-icon class="docs-icon">insert_drive_file</mat-icon>
                 <p class="mat-caption">{{item.date | date}}</p>
-                <p class="mat-body-2">{{item.name}}</p>
+                <p class="mat-body-2">{{item.title}}</p>
               </div>
             </button>
           </ng-container>
@@ -29,19 +29,26 @@
     </div>
   </mat-drawer>
     <!-- adding tool bar -->
-    <mat-toolbar color="primary">
-      <button mat-icon-button (click)="drawer.toggle()">
-        <mat-icon>{{ drawer.opened ? 'close' : 'menu'}} </mat-icon>
-      </button>
-      <span class="single-line"> <mat-icon>insert_drive_file</mat-icon> <span>New Document.md</span></span>
-      <span class="example-spacer"></span>
-      <button (click)="onDelete()" mat-icon-button>
-        <mat-icon>delete</mat-icon>
-      </button>
-      <button color="accent" mat-raised-button>
-        <mat-icon>save</mat-icon>
-      </button>
-    </mat-toolbar>
+  <mat-toolbar color="primary">
+    <button mat-icon-button (click)="drawer.toggle()">
+      <mat-icon>{{ drawer.opened ? 'close' : 'menu'}} </mat-icon>
+    </button>
+    <!--      <span class="single-line"> <mat-icon>insert_drive_file</mat-icon> <span>New Document.md</span></span>-->
+    <mat-form-field>
+      <div class="doc-name">
+        <mat-icon>insert_drive_file</mat-icon>
+        <input [value]="currentDoc.title" matInput style="width: max-content">
+      </div>
+    </mat-form-field>
+
+    <span class="example-spacer"></span>
+    <button (click)="onDelete()" mat-icon-button>
+      <mat-icon>delete</mat-icon>
+    </button>
+    <button color="accent" mat-raised-button>
+      <mat-icon>save</mat-icon>
+    </button>
+  </mat-toolbar>
 
   <article *ngIf="isEdit" class="doc">
     <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
@@ -49,7 +56,7 @@
       <mat-icon class="doc-header-icon">{{isEdit ? 'visibility' : 'visibility_off'}}</mat-icon>
     </mat-toolbar>
 
-    <textarea [value]="currentDoc"></textarea>
+    <textarea [value]="currentDoc.content"></textarea>
   </article>
 
   <article *ngIf="!isEdit" class="doc">
@@ -61,7 +68,7 @@
       <mat-card>
         <markdown
           (ready)="onReady()"
-          [data]="currentDoc">
+          [data]="currentDoc.content">
         </markdown>
       </mat-card>
     </div>

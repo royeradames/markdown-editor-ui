@@ -1,13 +1,22 @@
-export const docs = [
+export interface DocInterface {
+  id: number
+  date: string;
+  title: string;
+  content: string;
+}
+
+export const docs: DocInterface[] = [
   {
+    id: 1,
     date: '2020-01-01',
-    name: 'untitled-document.md',
-    text: `# Untitled Document`
+    title: 'untitled-document.md',
+    content: `# Untitled Document`
   },
   {
+    id: 2,
     date: '2010-01-01',
-    name: 'welcome.md',
-    text: `# Welcome to Markdown
+    title: 'welcome.md',
+    content: `# Welcome to Markdown
 
 Markdown is a lightweight markup language that you can use to add formatting elements to plaintext text documents.
 
