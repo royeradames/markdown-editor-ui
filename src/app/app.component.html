@@ -39,7 +39,7 @@
     </mat-form-field>
 
     <span class="example-spacer"></span>
-    <button (click)="onDelete()" mat-icon-button>
+    <button (click)="onDelete()" class="icon-delete" mat-icon-button>
       <mat-icon>delete</mat-icon>
     </button>
     <button (click)="onSave()" color="accent" mat-raised-button>
@@ -47,8 +47,7 @@
     </button>
   </mat-toolbar>
 
-  <!--  <article *ngIf="isEdit" class="doc">-->
-  <article *ngIf="!isEdit" class="doc">
+  <article *ngIf="isEdit" class="doc">
     <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
       <span class="mat-caption">MARKDOWN</span>
       <mat-icon class="doc-header-icon">{{isEdit ? 'visibility' : 'visibility_off'}}</mat-icon>
@@ -59,8 +58,7 @@
     </mat-card>
   </article>
 
-  <article *ngIf="isEdit" class="doc">
-    <!--  <article *ngIf="!isEdit" class="doc">-->
+  <article *ngIf="!isEdit" class="doc">
     <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
       <span class="mat-caption">PREVIEW</span>
       <mat-icon class="doc-header-icon">visibility_off</mat-icon>
