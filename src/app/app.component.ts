@@ -52,6 +52,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onReady() {
     console.log('onReady');
+    // debugger;
   }
 
   onAdd() {

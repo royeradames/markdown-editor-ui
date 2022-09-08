@@ -46,7 +46,6 @@ $font-family-roboto-slab: 'Roboto Slab', serif;
   font-size: 28px;
   font-weight: 300;
 }
-
 @mixin h3 {
   @extend %shared-heading;
   font-size: 24px;

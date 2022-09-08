@@ -1,40 +1,45 @@
+@use './scss/colors';
+@use './scss/typography';
+
 .example-spacer {
   flex: 1 1 auto;
 }
 
-.container{
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  bottom:0;
+.container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
-p{
+p {
   margin: 0;
 }
-.docs{
+
+.docs {
   height: 100%;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   column-gap: 15px;
 
-  &:first-child{
+  &:first-child {
     grid-row: span 2;
   }
-  &-icon{
+
+  &-icon {
     grid-row: span 2;
   }
 }
 
-.single-line{
+.single-line {
   display: flex;
   align-items: center;
   column-gap: 10px;
 }
 
-.menu-content{
+.menu-content {
   display: grid;
   padding: 24px;
   grid-template-rows: auto auto max-content 1fr auto;
@@ -62,50 +67,83 @@ p{
   display: none;
 }
 
-markdown {
-  h1 {
 
+markdown ::ng-deep {
+  & p {
+    @include typography.preview-paragraph;
+    color: colors.$color-500;
   }
 
-  h2 {
-
+  & h1 {
+    @include typography.h1;
+    color: colors.$color-700;
   }
 
-  h3 {
-
+  & h2 {
+    @include typography.h2;
+    color: colors.$color-700;
   }
 
-  h4 {
-
+  & h3 {
+    @include typography.h3;
+    color: colors.$color-700;
   }
 
-  h5 {
-
+  & h4 {
+    @include typography.h4;
+    color: colors.$color-700;
   }
 
-  h6 {
-
+  & h5 {
+    @include typography.h5;
+    color: colors.$color-700;
   }
 
-  prep {
+  & h6 {
+    @include typography.h6;
+    color: colors.$orange;
+  }
+
+  & p code {
+    @include typography.markdown-code;
+    color: colors.$color-700;
+  }
+
+  & prep {
+    padding: 24px;
 
     & code {
-
+      @include typography.markdown-code;
+      color: colors.$color-700;
     }
   }
 
-  ul {
+  & ul {
 
-    & li {
-
+    & li::marker {
+      color: colors.$orange;
     }
   }
 
-  a {
+  & li {
+    @include typography.preview-paragraph;
+    color: colors.$color-500;
+  }
+
+  & a {
 
   }
 
-  blockquote {
+  & blockquote, blockquote a {
+    @include typography.preview-paragraph-bold;
+    padding: 24px;
+    color: colors.$color-700;
+    background-color: colors.$color-200;
+    border-left: 5px solid colors.$orange;
 
+    & a {
+      padding: initial;
+      border: initial;
+    }
   }
 }
