@@ -1,0 +1,86 @@
+$font-family-roboto: 'Roboto', sans-serif;
+$font-family-roboto-mono: 'Roboto Mono', monospace;
+$font-family-roboto-slab: 'Roboto Slab', serif;
+@mixin body-m {
+  font-family: $font-family-roboto;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+@mixin heading-m {
+  font-family: $font-family-roboto;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+@mixin heading-s {
+  font-family: $font-family-roboto;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 2px;
+}
+
+@mixin markdown-code {
+  font-family: $font-family-roboto-mono;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 24px;
+}
+
+
+%shared-heading {
+  font-family: $font-family-roboto-slab;
+  font-weight: 700;
+}
+
+@mixin h1 {
+  @extend %shared-heading;
+  font-size: 32px;
+}
+
+@mixin h2 {
+  font-family: $font-family-roboto-slab;
+  font-size: 28px;
+  font-weight: 300;
+}
+
+@mixin h3 {
+  @extend %shared-heading;
+  font-size: 24px;
+}
+
+@mixin h4 {
+  @extend %shared-heading;
+  font-size: 20px;
+}
+
+@mixin h5 {
+  @extend %shared-heading;
+  font-size: 16px;
+}
+
+@mixin h6 {
+  @extend %shared-heading;
+  font-size: 14px;
+}
+
+%shared-preview-paragraph {
+  font-family: $font-family-roboto-slab;
+  font-size: 14px;
+  line-height: 24px;
+}
+
+@mixin preview-paragraph {
+  @extend %shared-preview-paragraph;
+  font-weight: 400;
+}
+
+@mixin preview-paragraph-bold {
+  @extend %shared-preview-paragraph;
+  font-weight: 700;
+}
+
+

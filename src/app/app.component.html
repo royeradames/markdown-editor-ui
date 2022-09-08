@@ -1,12 +1,10 @@
-<mat-drawer-container [formGroup]="form" autosize class="container" hasBackdrop="false">
-  <mat-drawer #drawer class="sidenav" mode="push" opened="true">
+<mat-drawer-container [formGroup]="form" autosize class="container">
+  <mat-drawer #drawer class="sidenav" mode="push">
     <!-- navigation menu content -->
     <div class="menu-content">
       <h1>MARKDOWN</h1>
-      <!--      <article>-->
       <h2>MY DOCUMENTS</h2>
-      <!--        drawer.toggle()-->
-      <button (click)="onAdd(); " color="accent" mat-raised-button>
+      <button (click)="onAdd();  drawer.toggle()" color="accent" mat-raised-button>
         <mat-icon>add</mat-icon>
         New Document
       </button>
@@ -21,7 +19,6 @@
           </button>
         </ng-container>
       </mat-action-list>
-      <!--      </article>-->
       <article class="single-line">
         <mat-icon style="transform: scaleX(-1);">brightness_3</mat-icon>
         <mat-slide-toggle color="primary" formControlName="themeToggle"></mat-slide-toggle>
@@ -50,7 +47,8 @@
     </button>
   </mat-toolbar>
 
-  <article *ngIf="isEdit" class="doc">
+  <!--  <article *ngIf="isEdit" class="doc">-->
+  <article *ngIf="!isEdit" class="doc">
     <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
       <span class="mat-caption">MARKDOWN</span>
       <mat-icon class="doc-header-icon">{{isEdit ? 'visibility' : 'visibility_off'}}</mat-icon>
@@ -61,7 +59,8 @@
     </mat-card>
   </article>
 
-  <article *ngIf="!isEdit" class="doc">
+  <article *ngIf="isEdit" class="doc">
+    <!--  <article *ngIf="!isEdit" class="doc">-->
     <mat-toolbar (click)="isEdit = !isEdit" class="doc-header">
       <span class="mat-caption">PREVIEW</span>
       <mat-icon class="doc-header-icon">visibility_off</mat-icon>
