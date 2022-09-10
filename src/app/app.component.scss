@@ -111,6 +111,7 @@ markdown ::ng-deep {
 
   & prep {
     padding: 24px;
+    background-color: colors.$color-200;
 
     & code {
       @include typography.markdown-code;
