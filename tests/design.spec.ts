@@ -201,14 +201,18 @@ test("reduced motion turns off the drawer slide", async ({ page }) => {
   expect(await page.evaluate(() => getComputedStyle(document.querySelector(".app-frame")!).transitionDuration)).toBe("0s");
 });
 
-test("starter dates read 01 April 2022 even where that instant is already 2 April", async ({ browser, baseURL }) => {
-  const context = await browser.newContext({ baseURL, timezoneId: "Pacific/Kiritimati" });
-  const page = await context.newPage();
-  await open(page);
-  await menu(page).click();
-  await expect(panel(page).getByRole("listitem").first()).toContainText("01 April 2022");
-  await context.close();
-});
+// Starter dates are calendar days. Kiritimati (UTC+14) caught the old noon-UTC timestamp showing 2 April;
+// Pago Pago (UTC-11) catches a local-time formatter showing 31 March.
+for (const timezoneId of ["Pacific/Kiritimati", "Pacific/Pago_Pago"]) {
+  test(`starter dates read 01 April 2022 in ${timezoneId}`, async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, timezoneId });
+    const page = await context.newPage();
+    await open(page);
+    await menu(page).click();
+    await expect(panel(page).getByRole("listitem").first()).toContainText("01 April 2022");
+    await context.close();
+  });
+}
 
 test("a delete dialog the browser closes on its own can be opened again", async ({ page }) => {
   await open(page);

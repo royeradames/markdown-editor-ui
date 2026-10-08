@@ -214,7 +214,8 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   }
 
   async function save(): Promise<Snapshot | null> {
-    if (!ready || !opened || busyRef.current) return null;
+    if (!ready || !opened) return null;
+    if (busyRef.current) { stillSaving(); return null; }
     const submitted = form.state.values;
     const parsed = draftSchema.safeParse(submitted);
     if (!parsed.success) {
