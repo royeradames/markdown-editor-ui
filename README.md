@@ -1,6 +1,6 @@
 # Markdown Editor — local documents
 
-A browser-local Next.js migration of the existing Angular editor. Create, rename, explicitly save, search and delete Markdown documents; preview beside the editor or in an expanded/mobile view. No account, server document store, analytics, synchronization or offline-installation claim is included. Clearing site data removes the saved library; use Download draft for a portable Markdown copy.
+A browser-local Next.js migration of the existing Angular editor. Create, rename, explicitly save, search and delete Markdown documents; preview beside the editor, or alone with the eye toggle (on phones it swaps the single visible pane). No account, server document store, analytics, synchronization or offline-installation claim is included. Clearing site data removes the saved library; use Download draft for a portable Markdown copy.
 
 ## State and storage contract
 
@@ -25,25 +25,28 @@ Primary sources checked 7 October 2026:
 
 The layout follows the official design: document name in the header, a Documents drawer behind the menu button below 1100px (a persistent sidebar on desktop), an eye toggle for preview-only, and an editor that fills its column. Orange actions keep the darker #b54225 for text contrast. Body text and controls stay at 16px/44px, with 14px secondary labels where the design uses smaller type. Roboto, Roboto Slab and Roboto Mono (the official design's faces) come from pinned Fontsource variable packages and are served by `next/font/local` from the app's own origin; no remote font CSS is fetched. Icons come from the official challenge starter. Header, drawer, modal (centered, 4px radius, 50% black backdrop) and pane structure were checked against the decoded official Figma; full pixel fidelity is not claimed. The new SVG and generated raster/app-touch icon also require served-artifact inspection; no physical installation has been tested.
 
-## Verification gate (prepared, not yet run)
+## Verification
 
-Use Node 24.11.1 and npm. Source preparation intentionally did not install packages, generate the new lockfile, run checks or publish a candidate. The first authorized execution must resolve/install this manifest and generate its root lockfile; the old Angular lock stays under `legacy/angular/`.
+Use Node 24.11.1 and npm. The root `package-lock.json` is committed; the old Angular lock stays under `legacy/angular/`. Playwright 1.58.2 drives the system Google Chrome (`channel: "chrome"`), so no browser download is needed.
 
 ```sh
-npm install
-npm run test
+npm ci
 npm run lint
 npm run typecheck
+npm run test        # domain/storage unit tests (node:test)
 npm run build
-npm run start -- --port 4394
+npm run test:e2e    # Playwright specs in tests/*.spec.ts; starts its own server on 127.0.0.1:4422
 ```
 
-In a separate terminal, with an approved local browser slot:
+The older journey suite needs a running production server. In a separate terminal:
 
 ```sh
-PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs MARKDOWN_EDITOR_URL=http://127.0.0.1:4394 npm run test:browser
+npm run start -- --hostname 127.0.0.1 --port 4422
+MARKDOWN_EDITOR_URL=http://127.0.0.1:4422 npm run test:browser
 ```
 
-The browser helper deliberately accepts localhost only. Any protected Preview gate must use a separately reviewed exact-origin authentication wrapper, without putting credentials in files or broad request headers. Tests use only source examples and fictional documents. Close the owned server/browser afterward.
+The browser helper accepts localhost only, uses only source examples and fictional documents, and writes screenshots to the ignored `.test-state/`. Stop the server afterward.
 
-Required evidence before readiness: domain/storage tests, types/lint/build, production dependency audit, actual browser journeys including two tabs and hostile Markdown, both themes at 400/768/1440, keyboard/native-dialog focus, no-JS readable source example, image/network policy and screenshots. After independent source review and authorized publication, verify the exact Git-head Preview, native Vercel completion comment and all pending rendered behavior. The repository's production branch is **master**. No provider change or production release is authorized by this source artifact.
+What passed on 7 October 2026 at commit `8bf7436` (on Mac2, and again on Mac1's independent fresh checkout): `npm ci`, lint with 0 errors (only old `import/no-anonymous-default-export` warnings: 1 in the Mac2 worktree, 2 on Mac1's checkout), typecheck clean, build OK, unit tests 10/10, Playwright specs 15/15 and the browser suite 16/16. The Playwright specs hold the regression tests for the centered dialogs, matching status/list labels, busy-not-disabled saving, the Documents drawer and Escape, the header/eye-toggle/editor-fill/font structure, and the site name metadata. Each failed on `03939bb` before its fix.
+
+The repository's production branch is **master**. No production release is part of this branch.
