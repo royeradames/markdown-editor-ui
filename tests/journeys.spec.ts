@@ -23,6 +23,8 @@ test.afterEach(() => {
 async function open(page: Page, init?: () => void) {
   if (init) await page.addInitScript(init);
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  // Hydration mismatches and other React errors arrive as console errors.
+  page.on("console", (message) => { if (message.type() === "error" && !/Failed to load resource/.test(message.text())) pageErrors.push(message.text()); });
   await page.goto("/");
   await page.waitForFunction(() => document.querySelector(".editor-app")?.getAttribute("data-ready") === "true");
 }
@@ -37,7 +39,7 @@ async function save(page: Page) {
   const before = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
   await page.locator(".save-button").click();
   await page.waitForFunction(({ key, before }) => localStorage.getItem(key) !== before, { key: STORAGE_KEY, before });
-  await expect(page.locator(".save-button")).toHaveText("Saved");
+  await expect(page.locator(".save-button")).toHaveAttribute("data-state", "saved");
 }
 async function createDocument(page: Page, title: string, content: string) {
   await drawer(page);
@@ -179,7 +181,7 @@ test("keyboard only: create, name, save, then cancel a delete with focus kept", 
   const saveButton = page.locator(".save-button");
   await saveButton.focus();
   await page.keyboard.press("Enter");
-  await expect(saveButton).toHaveText("Saved");
+  await expect(saveButton).toHaveAttribute("data-state", "saved");
   const remove = page.getByRole("button", { name: "Delete document", exact: true });
   await remove.focus();
   await page.keyboard.press("Space");

@@ -6,7 +6,7 @@ import { addDocument, deleteDocument, documentDate, draftSchema, hasUnsavedChang
 import { browserExclusive, readLibrary, STORAGE_KEY, writeLibrary, type ReadResult, type Snapshot } from "../lib/browser-storage.ts";
 import { exampleLibrary } from "../lib/examples.ts";
 import { MarkdownPreview } from "./markdown-preview";
-import { CloseIcon, DeleteIcon, DocumentIcon, HidePreviewIcon, LogoIcon, MenuIcon, MoonIcon, SaveIcon, ShowPreviewIcon, SunIcon } from "./icons";
+import { CheckIcon, CloseIcon, DeleteIcon, DocumentIcon, HidePreviewIcon, LogoIcon, MenuIcon, MoonIcon, SaveIcon, ShowPreviewIcon, SunIcon } from "./icons";
 
 type Issue = { kind: "invalid"; raw: string; message: string } | { kind: "notice"; message: string } | null;
 type Prompt = { kind: "unsaved"; intent: Intent } | { kind: "delete"; name: string } | { kind: "reset" } | null;
@@ -72,7 +72,7 @@ function LibraryWorkspace({ initial, initialIssue }: { initial: Snapshot; initia
   />;
 }
 
-function NativeDialog({ children, title, description, error, onCancel }: { children: ReactNode; title: string; description: ReactNode; error: string; onCancel: () => void }) {
+function NativeDialog({ children, title, description, error, onCancel, onClosed }: { children: ReactNode; title: string; description: ReactNode; error: string; onCancel: () => void; onClosed: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
@@ -97,7 +97,7 @@ function NativeDialog({ children, title, description, error, onCancel }: { child
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
-  return <dialog ref={ref} aria-labelledby="dialog-title" aria-describedby="dialog-description" onKeyDown={trapTab} onCancel={(event) => { event.preventDefault(); onCancel(); }} onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
+  return <dialog ref={ref} aria-labelledby="dialog-title" aria-describedby="dialog-description" onKeyDown={trapTab} onCancel={(event) => { event.preventDefault(); onCancel(); }} onClose={onClosed} onClick={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
     <div className="dialog-body">
       <h2 id="dialog-title">{title}</h2>
       <p id="dialog-description">{description}</p>
@@ -269,7 +269,8 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   }
 
   function request(intent: Intent) {
-    if (busyRef.current || !ready) return;
+    if (!ready) return;
+    if (busyRef.current) { stillSaving(); return; }
     setDialogError("");
     if (intent.kind === "select" && intent.id === opened?.id) { setDrawer(false); nameRef.current?.focus(); return; }
     const saved = snapshotRef.current.library.documents.find((doc) => doc.id === opened?.id);
@@ -299,14 +300,20 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
 
   async function resetInvalid() {
     if (issue?.kind !== "invalid" || busyRef.current) return;
-    const next = await persist(exampleLibrary, issue.raw);
+    // Fresh IDs: a reset must not bring back an ID that a deleted document once had.
+    const documents = exampleLibrary.documents.map((doc) => ({ ...doc, id: crypto.randomUUID() }));
+    const next = await persist({ ...exampleLibrary, documents, selectedId: documents[1]?.id ?? null }, issue.raw);
     if (next) { setPrompt(null); onOpen(selectedDocument(next.library), next, null); }
   }
 
   function cancelPrompt() { if (!busyRef.current) setPrompt(null); }
+  // Chrome closes a modal itself on a repeated Escape even when cancel is refused; keep React's state in step so it can reopen.
+  function dialogClosed() { setPrompt(null); }
+  function stillSaving() { setAnnouncement("Still saving. Try again in a moment."); }
 
   function toggleTheme() {
     if (!ready) return;
+    if (busyRef.current) { stillSaving(); return; }
     void persist({ ...snapshotRef.current.library, theme: theme === "light" ? "dark" : "light" });
   }
 
@@ -330,9 +337,9 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
       aria-pressed={previewOnly}
       onClick={togglePreview}
     >{previewOnly ? <HidePreviewIcon /> : <ShowPreviewIcon />}</button>;
-    const saveLabel = busy ? "Saving…" : justSaved ? "Saved" : "Save Changes";
+    const saveLabel = busy ? "Saving…" : "Save Changes";
     return <div className="editor-app" data-ready={ready} data-sidebar={drawer ? "open" : "closed"}>
-      <a className="skip-link" href={opened ? "#markdown-input" : "#main"}>Skip to editor</a>
+      <a className="skip-link" href={opened && !previewOnly ? "#markdown-input" : "#main"}>Skip to editor</a>
       <div className="app-frame">
         <button ref={menuRef} className="menu-button" type="button" aria-label="Documents" aria-expanded={drawer} aria-controls="documents-panel" onClick={() => setDrawer(!drawer)}>
           {drawer ? <CloseIcon /> : <MenuIcon />}
@@ -341,7 +348,7 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
           <h2 id="documents-heading">My documents</h2>
           <button type="button" className="button-primary new-document" onClick={() => request({ kind: "new" })}>+ New Document</button>
           <ul className="document-list">
-            {documents.map((doc) => <li key={doc.id}>
+            {ready && documents.map((doc) => <li key={doc.id}>
               <button type="button" className="document-link" aria-current={doc.id === opened?.id ? "page" : undefined} onClick={() => request({ kind: "select", id: doc.id })}>
                 <DocumentIcon />
                 <span className="document-meta"><span className="document-title">{doc.name}</span><span className="document-date">{documentDate(doc)}</span></span>
@@ -366,8 +373,8 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
           </div>}
           {opened && <div className="document-actions">
             <button type="button" className="icon-button delete-button" aria-label="Delete document" onClick={() => request({ kind: "delete" })}><DeleteIcon /></button>
-            <button type="button" className="button-primary save-button" aria-busy={busy} onClick={() => void save()}>
-              {busy ? <span className="spinner" aria-hidden="true" /> : <SaveIcon />}<span className="save-label">{saveLabel}</span>
+            <button type="button" className="button-primary save-button" aria-busy={busy} data-state={busy ? "saving" : justSaved ? "saved" : "idle"} onClick={() => void save()}>
+              {busy ? <span className="spinner" aria-hidden="true" /> : justSaved ? <CheckIcon /> : <SaveIcon />}<span className="save-label">{saveLabel}</span>
             </button>
           </div>}
         </header>
@@ -403,16 +410,16 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
         </main>
       </div>
       <p className="sr-only" role="status">{announcement}</p>
-      {prompt?.kind === "unsaved" && <NativeDialog error={dialogError} key="unsaved" title="Save your changes?" description={<>Your edits to ‘{values.name || "untitled-document.md"}’ have not been saved.</>} onCancel={cancelPrompt}>
+      {prompt?.kind === "unsaved" && <NativeDialog error={dialogError} key="unsaved" title="Save your changes?" description={<>Your edits to ‘{values.name || "untitled-document.md"}’ have not been saved.</>} onCancel={cancelPrompt} onClosed={dialogClosed}>
         <button type="button" className="button-primary" aria-busy={busy} onClick={() => void continueUnsaved("save")}>{busy && <span className="spinner" aria-hidden="true" />}{busy ? "Saving…" : "Save & Continue"}</button>
         <button type="button" className="button-secondary" onClick={() => void continueUnsaved("discard")}>Discard changes</button>
         <button type="button" className="button-text" data-initial-focus onClick={cancelPrompt}>Cancel</button>
       </NativeDialog>}
-      {prompt?.kind === "delete" && <NativeDialog error={dialogError} key="delete" title="Delete this document?" description={<>Are you sure you want to delete the ‘{prompt.name}’ document and its contents? This action cannot be reversed.</>} onCancel={cancelPrompt}>
+      {prompt?.kind === "delete" && <NativeDialog error={dialogError} key="delete" title="Delete this document?" description={<>Are you sure you want to delete the ‘{prompt.name}’ document and its contents? This action cannot be reversed.</>} onCancel={cancelPrompt} onClosed={dialogClosed}>
         <button type="button" className="button-primary" aria-busy={busy} onClick={() => void confirmDelete()}>{busy && <span className="spinner" aria-hidden="true" />}{busy ? "Deleting…" : "Confirm & Delete"}</button>
         <button type="button" className="button-text" data-initial-focus onClick={cancelPrompt}>Cancel</button>
       </NativeDialog>}
-      {prompt?.kind === "reset" && <NativeDialog error={dialogError} key="reset" title="Reset unreadable saved documents?" description="This replaces the unreadable saved documents with the two starter documents. Download the storage backup and your current draft first. Newer changes from another tab are never overwritten." onCancel={cancelPrompt}>
+      {prompt?.kind === "reset" && <NativeDialog error={dialogError} key="reset" title="Reset unreadable saved documents?" description="This replaces the unreadable saved documents with the two starter documents. Download the storage backup and your current draft first. Newer changes from another tab are never overwritten." onCancel={cancelPrompt} onClosed={dialogClosed}>
         <button type="button" className="button-primary" aria-busy={busy} onClick={() => void resetInvalid()}>{busy && <span className="spinner" aria-hidden="true" />}{busy ? "Resetting…" : "Reset saved documents"}</button>
         <button type="button" className="button-text" data-initial-focus onClick={cancelPrompt}>Cancel</button>
       </NativeDialog>}

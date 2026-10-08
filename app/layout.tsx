@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 const website = { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: SITE_URL };
 // Runs before first paint: the saved theme (or, with nothing saved, the system preference) so a dark reload never flashes light.
-const themeScript = `try{var t;var r=localStorage.getItem("markdown-editor-library-v1");if(r){t=JSON.parse(r).theme}if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}`;
+const themeScript = `var t;try{t=JSON.parse(localStorage.getItem("markdown-editor-library-v1")).theme}catch(e){}try{if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}`;
 
 export default function Layout({ children }: { children: ReactNode }) {
   return <html lang="en" className={`${roboto.variable} ${robotoSlab.variable} ${robotoMono.variable}`} suppressHydrationWarning><body>

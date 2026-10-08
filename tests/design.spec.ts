@@ -10,10 +10,8 @@ async function open(page: Page, viewport: { width: number; height: number } = si
   await page.goto("/");
   await ready(page);
 }
-// Ready once local storage is read. The fallback (an enabled Save) also recognises the pre-redesign build, so the
-// fail-first run fails on behaviour rather than on a missing marker.
-const ready = (page: Page) => page.waitForFunction(() => document.querySelector(".editor-app")?.getAttribute("data-ready") === "true"
-  || document.querySelector<HTMLButtonElement>(".save-button")?.disabled === false);
+// Ready once local storage is read and the workspace holding it is mounted.
+const ready = (page: Page) => page.waitForFunction(() => document.querySelector(".editor-app")?.getAttribute("data-ready") === "true");
 const menu = (page: Page) => page.getByRole("button", { name: "Documents", exact: true });
 const panel = (page: Page) => page.locator("#documents-panel");
 const nameInput = (page: Page) => page.getByLabel("Document Name", { exact: true });
@@ -121,6 +119,7 @@ test("delete opens the design's confirmation modal, traps focus, restores it on 
   await page.reload();
   await ready(page);
   await menu(page).click();
+  await expect(panel(page)).toBeVisible();
   await expect(panel(page).getByRole("listitem")).toHaveCount(1);
   await expect(panel(page).getByRole("button", { name: /welcome\.md/ })).toHaveCount(0);
 });
@@ -189,7 +188,8 @@ test("saving a renamed document keeps it after reload", async ({ page }) => {
   await nameInput(page).fill("notes.md");
   await editor(page).fill("# Notes");
   await page.locator(".save-button").click();
-  await expect(page.locator(".save-button")).toHaveText(/Saved/);
+  await expect(page.locator(".save-button")).toHaveAttribute("data-state", "saved");
+  await expect(page.locator(".save-button")).toHaveAccessibleName("Save Changes");
   await page.reload();
   await ready(page);
   await expect(nameInput(page)).toHaveValue("notes.md");
@@ -199,4 +199,26 @@ test("saving a renamed document keeps it after reload", async ({ page }) => {
 test("reduced motion turns off the drawer slide", async ({ page }) => {
   await open(page);
   expect(await page.evaluate(() => getComputedStyle(document.querySelector(".app-frame")!).transitionDuration)).toBe("0s");
+});
+
+test("starter dates read 01 April 2022 even where that instant is already 2 April", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, timezoneId: "Pacific/Kiritimati" });
+  const page = await context.newPage();
+  await open(page);
+  await menu(page).click();
+  await expect(panel(page).getByRole("listitem").first()).toContainText("01 April 2022");
+  await context.close();
+});
+
+test("a delete dialog the browser closes on its own can be opened again", async ({ page }) => {
+  await open(page);
+  const remove = page.getByRole("button", { name: "Delete document", exact: true });
+  await remove.click();
+  const dialog = page.getByRole("dialog", { name: "Delete this document?" });
+  await expect(dialog).toBeVisible();
+  // Chrome closes a modal without a cancelable event on a repeated Escape; close() is the same path.
+  await page.evaluate(() => document.querySelector("dialog")!.close());
+  await expect(dialog).toBeHidden();
+  await remove.click();
+  await expect(dialog).toBeVisible();
 });

@@ -45,8 +45,14 @@ export function addDocument(library: Library, id: string, now: number): Library 
   const document = documentSchema.parse({ id, name: "untitled-document.md", content: "", createdAt: now, updatedAt: now });
   return librarySchema.parse({ ...library, selectedId: id, documents: [...library.documents, document] });
 }
-const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+const dateOptions = { day: "2-digit", month: "long", year: "numeric" } as const;
+const localDate = new Intl.DateTimeFormat("en-GB", dateOptions);
+const calendarDate = new Intl.DateTimeFormat("en-GB", { ...dateOptions, timeZone: "UTC" });
+// The starter's createdAt is a calendar day ("04-01-2022"), stored as that day at 00:00 UTC.
+export const STARTER_CREATED_AT = Date.UTC(2022, 3, 1);
 // "01 April 2022", the design's spelled-out form, so no reader has to guess day/month order.
+// Starter documents show their calendar day everywhere; documents made here show the reader's local day.
 export function documentDate(doc: Document): string {
-  return dateFormat.format(new Date(doc.createdAt ?? doc.updatedAt));
+  const at = doc.createdAt ?? doc.updatedAt;
+  return (at === STARTER_CREATED_AT ? calendarDate : localDate).format(new Date(at));
 }

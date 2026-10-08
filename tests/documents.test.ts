@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { addDocument, deleteDocument, documentDate, hasUnsavedChanges, librarySchema, MAX_CONTENT, saveDocument } from "../lib/documents.ts";
+import { addDocument, deleteDocument, documentDate, STARTER_CREATED_AT, hasUnsavedChanges, librarySchema, MAX_CONTENT, saveDocument } from "../lib/documents.ts";
 import { exampleLibrary } from "../lib/examples.ts";
 import { readLibrary, STORAGE_KEY, writeLibrary, type Exclusive, type StoragePort } from "../lib/browser-storage.ts";
 import { safeLink } from "../lib/markdown-policy.ts";
@@ -81,7 +81,7 @@ test("the sample library is the official starter data.json, dated 01 April 2022"
   const raw = await readFile(new URL("../starter/data.json", import.meta.url), "utf8");
   const official = JSON.parse(raw) as { createdAt: string; name: string; content: string }[];
   assert.deepEqual(exampleLibrary.documents.map(({ name, content }) => ({ name, content })), official.map(({ name, content }) => ({ name, content })));
-  for (const doc of exampleLibrary.documents) assert.equal(documentDate(doc), "01 April 2022");
+  for (const doc of exampleLibrary.documents) { assert.equal(doc.createdAt, STARTER_CREATED_AT); assert.equal(documentDate(doc), "01 April 2022"); }
   assert.ok(official.every((doc) => doc.createdAt === "04-01-2022"));
 });
 

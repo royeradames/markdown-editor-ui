@@ -44,7 +44,7 @@ test("saving keeps every control focusable, keeps focus on Save and blocks only 
   // Two more activations while the first save is pending must not write again.
   await page.keyboard.press("Enter");
   await page.keyboard.press("Space");
-  await expect(save).toHaveText("Saved");
+  await expect(save).toHaveAttribute("data-state", "saved");
   await expect(page.getByRole("status").filter({ hasText: "Saved welcome.md in this browser." })).toHaveCount(1);
   await expect(save).not.toHaveAttribute("aria-busy", "true");
   await expect(save).toBeFocused();
