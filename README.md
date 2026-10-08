@@ -48,4 +48,6 @@ npm run test:e2e    # Playwright: design, journeys, QA findings and regressions;
 
 `PW_PORT` (default 4422) and `PW_WORKERS` (default 1) adjust the Playwright server port and workers.
 
+Vercel builds with `rm -rf .next/cache && npm run build` (`vercel.json`): on October 8, 2026 the restored build cache made Turbopack ship the previous release's CSS with the new markup, which broke production until a cache-free rebuild.
+
 `legacy/angular/` keeps the original Angular app from commit `238b1b4`. The production branch is `master`.
