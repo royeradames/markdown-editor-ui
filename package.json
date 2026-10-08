@@ -13,7 +13,6 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:browser": "node tests/editor.browser.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
