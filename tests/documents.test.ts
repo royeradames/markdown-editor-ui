@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { deleteDocument, hasUnsavedChanges, librarySchema, MAX_CONTENT, newDocument, saveDocument } from "../lib/documents.ts";
+import { deleteDocument, hasUnsavedChanges, isSourceExample, librarySchema, MAX_CONTENT, newDocument, saveDocument } from "../lib/documents.ts";
 import { exampleLibrary } from "../lib/examples.ts";
 import { readLibrary, STORAGE_KEY, writeLibrary, type Exclusive, type StoragePort } from "../lib/browser-storage.ts";
 import { safeLink } from "../lib/markdown-policy.ts";
@@ -87,4 +87,13 @@ test("both preserved examples still match their original source text", async () 
     assert.equal(exampleLibrary.documents[index]?.name, entry[1]);
     assert.equal(exampleLibrary.documents[index]?.content, entry[2]?.replaceAll("\\`", "`"));
   }
+});
+
+test("only a user save ends a source example; theme and selection writes do not", () => {
+  const welcome = exampleLibrary.documents[1]; assert.ok(welcome);
+  const themed = librarySchema.parse({ ...exampleLibrary, theme: "dark", selectedId: exampleLibrary.documents[0]?.id });
+  assert.ok(themed.documents.every(isSourceExample));
+  const saved = saveDocument(themed, welcome.id, { name: welcome.name, content: "# Mine" }, 1_700_000_000_000);
+  assert.equal(isSourceExample(saved.documents.find((doc) => doc.id === welcome.id)!), false);
+  assert.equal(isSourceExample(saved.documents.find((doc) => doc.id !== welcome.id)!), true);
 });

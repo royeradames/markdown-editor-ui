@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useForm } from "@tanstack/react-form";
-import { deleteDocument, draftSchema, hasUnsavedChanges, MAX_CONTENT, MAX_DOCUMENTS, newDocument, saveDocument, selectedDocument, type Document, type Draft, type Intent, type Library } from "../lib/documents.ts";
+import { deleteDocument, draftSchema, hasUnsavedChanges, isSourceExample, MAX_CONTENT, MAX_DOCUMENTS, newDocument, saveDocument, selectedDocument, type Document, type Draft, type Intent, type Library } from "../lib/documents.ts";
 import { browserExclusive, readLibrary, STORAGE_KEY, writeLibrary, type ReadResult, type Snapshot } from "../lib/browser-storage.ts";
 import { exampleLibrary } from "../lib/examples.ts";
 import { MarkdownPreview } from "./markdown-preview";
+import { CloseIcon, DeleteIcon, DocumentIcon, HidePreviewIcon, MenuIcon, SaveIcon, ShowPreviewIcon } from "./icons";
 
 type Issue = { kind: "invalid"; raw: string; message: string } | { kind: "notice"; message: string } | null;
 type Prompt = { kind: "unsaved"; intent: Intent } | { kind: "delete"; name: string } | { kind: "reset" } | null;
@@ -80,8 +81,8 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [drawer, setDrawer] = useState(false);
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
-  const [expanded, setExpanded] = useState(false);
+  // One eye toggle: wide screens hide the Markdown pane; phones swap their single visible pane.
+  const [previewOnly, setPreviewOnly] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [prompt, setPrompt] = useState<Prompt>(null);
@@ -90,6 +91,8 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   const form = useForm({ defaultValues, validators: { onSubmit: draftSchema } });
   const nameRef = useRef<HTMLInputElement>(null);
   const newRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const toggleRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
     if (focusOnOpen) (nameRef.current?.disabled ? newRef.current : nameRef.current)?.focus();
@@ -133,8 +136,9 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   }
 
   async function save(): Promise<Snapshot | null> {
-    if (!opened) return null;
-    const parsed = draftSchema.safeParse(form.state.values);
+    if (!opened || busyRef.current) return null;
+    const submitted = form.state.values;
+    const parsed = draftSchema.safeParse(submitted);
     if (!parsed.success) {
       reportFailure(parsed.error.issues[0]?.message ?? "Check the document.");
       if (!prompt) nameRef.current?.focus();
@@ -143,7 +147,12 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
     try {
       const next = saveDocument(snapshotRef.current.library, opened.id, parsed.data, Date.now());
       const saved = await persist(next);
-      if (saved) { form.reset(parsed.data, { keepDefaultValues: true }); setMessage("Saved in this browser."); }
+      if (saved) {
+        // Controls stay editable while saving; only adopt the normalized values if nothing was typed meanwhile.
+        const now = form.state.values;
+        if (now.name === submitted.name && now.content === submitted.content) form.reset(parsed.data, { keepDefaultValues: true });
+        setMessage("Saved in this browser.");
+      }
       return saved;
     } catch { reportFailure(`Save failed. A library can hold ${MAX_DOCUMENTS} documents with at most ${MAX_CONTENT.toLocaleString()} characters each.`); return null; }
   }
@@ -178,7 +187,7 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   }
 
   async function continueUnsaved(action: "save" | "discard") {
-    if (prompt?.kind !== "unsaved") return;
+    if (prompt?.kind !== "unsaved" || busyRef.current) return;
     const intent = prompt.intent;
     const current = action === "save" ? await save() : snapshotRef.current;
     if (!current) return;
@@ -192,7 +201,7 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   }
 
   async function confirmDelete() {
-    if (!opened) return;
+    if (!opened || busyRef.current) return;
     const current = snapshotRef.current;
     if (!current.library.documents.some((doc) => doc.id === opened.id)) {
       setPrompt(null); onOpen(selectedDocument(current.library), current, issue); return;
@@ -202,53 +211,78 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   }
 
   async function resetInvalid() {
-    if (issue?.kind !== "invalid") return;
+    if (issue?.kind !== "invalid" || busyRef.current) return;
     const next = await persist(exampleLibrary, issue.raw);
     if (next) { setPrompt(null); onOpen(selectedDocument(next.library), next, null); }
+  }
+
+  function cancelPrompt() { if (!busyRef.current) setPrompt(null); }
+
+  function togglePreview() {
+    setPreviewOnly((current) => !current);
+    // On phones the pressed toggle's pane disappears; move focus to the toggle that is now on screen.
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.offsetParent !== null) return;
+      toggleRefs.current.find((button) => button && button.offsetParent !== null)?.focus();
+    });
   }
 
   const visibleDocuments = snapshot.library.documents.filter((doc) => doc.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   return <form.Subscribe selector={(state) => state.values}>{(values) => {
     const saved = snapshot.library.documents.find((doc) => doc.id === opened?.id);
     const dirty = opened ? hasUnsavedChanges(saved, values) : false;
-    return <div className="editor-app" data-theme={snapshot.library.theme}>
+    const status = !ready ? "Opening local documents…" : busy ? "Saving…" : dirty ? "Unsaved changes" : opened ? saved && isSourceExample(saved) ? "Source example — not yet saved" : "Saved version" : "No document selected";
+    const previewToggle = (index: number) => <button ref={(node) => { toggleRefs.current[index] = node; }} type="button" className="preview-toggle" aria-label="Preview only" aria-pressed={previewOnly} onClick={togglePreview}>{previewOnly ? <HidePreviewIcon /> : <ShowPreviewIcon />}</button>;
+    return <div className="editor-app" data-theme={snapshot.library.theme} data-drawer={drawer ? "open" : "closed"} onKeyDown={(event) => {
+      // Escape closes the Documents drawer (not the always-visible desktop sidebar) and returns focus to its button.
+      if (event.key !== "Escape" || event.defaultPrevented || prompt || !drawer) return;
+      const menu = menuRef.current;
+      if (!menu || menu.offsetParent === null) return;
+      setDrawer(false); menu.focus();
+    }}>
       <a className="skip-link" href="#markdown-input">Skip to Markdown</a>
-      <header className="topbar">
-        <button className="menu-button" type="button" aria-expanded={drawer} aria-controls="documents-panel" onClick={() => setDrawer(!drawer)}>Documents</button>
-        <h1>MARKDOWN</h1><span className="local-label">Saved on this browser only</span>
-        <div className="document-actions"><button disabled={!ready || busy || !opened} onClick={() => request({ kind: "delete" })}>Delete</button><button className="primary" disabled={!ready || busy || !opened} onClick={() => void save()}>{busy ? "Saving…" : "Save changes"}</button></div>
-      </header>
-      <div className="workspace-layout">
-        <aside id="documents-panel" className={drawer ? "documents-panel open" : "documents-panel"} aria-label="Documents">
-          <h2>My documents</h2><p>Edits stay unsaved until you choose Save. Clearing browser data removes saved documents.</p>
-          <button ref={newRef} className="primary" disabled={!ready || busy} onClick={() => request({ kind: "new" })}>+ New document</button>
-          <label htmlFor="document-search">Search documents</label><input id="document-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setSearch(""); }} />
-          <nav aria-label="Saved documents"><ul>{visibleDocuments.map((doc) => <li key={doc.id}><button disabled={!ready || busy} aria-current={doc.id === opened?.id ? "page" : undefined} onClick={() => request({ kind: "select", id: doc.id })}><span>{doc.name}</span><small>{doc.updatedAt ? new Date(doc.updatedAt).toLocaleDateString() : "Source example"}</small></button></li>)}</ul></nav>
-          {!visibleDocuments.length && <p>{search ? "No documents match this search. Your selected document stays open." : "No saved documents yet."}</p>}
-          {opened && !saved && <p>New document: {values.name || "Untitled"} (unsaved)</p>}
-          <button disabled={!ready || busy} onClick={() => void persist({ ...snapshotRef.current.library, theme: snapshot.library.theme === "light" ? "dark" : "light" })}>Use {snapshot.library.theme === "light" ? "dark" : "light"} theme</button>
-          <button disabled={!ready || busy} onClick={() => request({ kind: "reload" })}>Reload saved documents</button>
-        </aside>
+      <aside id="documents-panel" className={drawer ? "documents-panel open" : "documents-panel"} aria-label="Documents">
+        <h2>My documents</h2><p>Edits stay unsaved until you choose Save. Clearing browser data removes saved documents.</p>
+        <button ref={newRef} className="primary" disabled={!ready} onClick={() => request({ kind: "new" })}>+ New document</button>
+        <label htmlFor="document-search">Search documents</label><input id="document-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape" && search) { event.preventDefault(); setSearch(""); } }} />
+        <nav aria-label="Saved documents"><ul>{visibleDocuments.map((doc) => <li key={doc.id}><button disabled={!ready} aria-current={doc.id === opened?.id ? "page" : undefined} onClick={() => request({ kind: "select", id: doc.id })}><DocumentIcon /><span className="document-item"><span>{doc.name}</span><small>{isSourceExample(doc) ? "Source example" : new Date(doc.updatedAt).toLocaleDateString()}</small></span></button></li>)}</ul></nav>
+        {!visibleDocuments.length && <p>{search ? "No documents match this search. Your selected document stays open." : "No saved documents yet."}</p>}
+        {opened && !saved && <p>New document: {values.name || "Untitled"} (unsaved)</p>}
+        <div className="panel-footer">
+          <button disabled={!ready} onClick={() => void persist({ ...snapshotRef.current.library, theme: snapshot.library.theme === "light" ? "dark" : "light" })}>Use {snapshot.library.theme === "light" ? "dark" : "light"} theme</button>
+          <button disabled={!ready} onClick={() => request({ kind: "reload" })}>Reload saved documents</button>
+        </div>
+      </aside>
+      <div className="app-shell">
+        <header className="topbar">
+          <button ref={menuRef} className="menu-button" type="button" aria-label="Documents" aria-expanded={drawer} aria-controls="documents-panel" onClick={() => setDrawer(!drawer)}>{drawer ? <CloseIcon /> : <MenuIcon />}</button>
+          <div className="topbar-content">
+            <h1>Markdown</h1>
+            <form.Field name="name">{(field) => <label className="document-name"><DocumentIcon /><span className="document-name-text"><span className="document-name-label">Document name</span><input id="document-name" ref={nameRef} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} maxLength={80} disabled={!ready || !opened} /></span></label>}</form.Field>
+            <div className="document-actions">
+              <button type="button" className="icon-button" aria-label="Delete" disabled={!ready || !opened} onClick={() => request({ kind: "delete" })}><DeleteIcon /></button>
+              <button type="button" className="primary save-button" aria-busy={busy} disabled={!ready || !opened} onClick={() => void save()}>{busy ? <span className="spinner" aria-hidden="true" /> : <SaveIcon />}<span className="save-label">Save changes</span></button>
+            </div>
+          </div>
+        </header>
         <main className="editor-main">
-          <div className="document-heading">
-            <form.Field name="name">{(field) => <label>Document name<input ref={nameRef} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} maxLength={80} disabled={!ready || busy || !opened} /></label>}</form.Field>
-            <p role="status">{!ready ? "Opening local documents…" : dirty ? "Unsaved changes" : opened ? snapshot.raw === null ? "Source example — not yet saved" : "Saved version" : "No document selected"}</p>
+          {issue && <section className="notice" role="alert"><p>{issue.message}</p>{issue.kind === "invalid" && <div className="button-row"><button onClick={() => download(issue.raw, "markdown-library-backup.json", "application/json")}>Download storage backup</button><button onClick={() => { if (busyRef.current) return; setDialogError(""); setPrompt({ kind: "reset" }); }}>Reset saved library</button></div>}</section>}
+          {message && <p role="status" className="notice">{message}</p>}
+          {opened ? <div className="panes" data-preview-only={previewOnly}>
+            <section className="edit-pane" aria-label="Markdown editor"><div className="pane-header"><h2>Markdown</h2>{previewToggle(0)}</div><form.Field name="content">{(field) => <textarea id="markdown-input" aria-label="Markdown content" value={field.state.value} onChange={(event) => field.handleChange(event.target.value)} onBlur={field.handleBlur} maxLength={MAX_CONTENT} spellCheck={false} disabled={!ready} />}</form.Field></section>
+            <section className="preview-pane" aria-label="Markdown preview"><div className="pane-header"><h2>Preview</h2>{previewToggle(1)}</div><div className="preview-scroll"><MarkdownPreview content={values.content} /></div></section>
+          </div> : <div className="empty-state"><h2>Your library is empty.</h2><p>Create a document to start writing. Saved documents stay in this browser.</p><button className="primary" onClick={() => request({ kind: "new" })}>Create a document</button></div>}
+          <div className="status-bar">
+            <p role="status">{status}</p>
+            {opened && <p className="character-count">{values.content.length.toLocaleString()} / {MAX_CONTENT.toLocaleString()} characters</p>}
             <button disabled={!opened} onClick={() => download(values.content, values.name)}>Download draft</button>
           </div>
-          {issue && <section className="notice" role="alert"><p>{issue.message}</p>{issue.kind === "invalid" && <div className="button-row"><button onClick={() => download(issue.raw, "markdown-library-backup.json", "application/json")}>Download storage backup</button><button disabled={busy} onClick={() => { setDialogError(""); setPrompt({ kind: "reset" }); }}>Reset saved library</button></div>}</section>}
-          {message && <p role="status" className="notice">{message}</p>}
-          {opened ? <>
-            <div className="view-controls"><div className="mobile-modes" role="group" aria-label="Editor view"><button aria-pressed={mode === "edit"} onClick={() => { setMode("edit"); setExpanded(false); }}>Editor</button><button aria-pressed={mode === "preview"} onClick={() => setMode("preview")}>Preview</button></div><button aria-pressed={expanded} onClick={() => { setExpanded(!expanded); setMode("preview"); }}>{expanded ? "Exit expanded preview" : "Expand preview"}</button></div>
-            <div className="panes" data-mode={mode} data-expanded={expanded}>
-              <section className="edit-pane" aria-label="Markdown editor"><h2>Markdown</h2><form.Field name="content">{(field) => <textarea id="markdown-input" aria-label="Markdown content" value={field.state.value} onChange={(event) => field.handleChange(event.target.value)} onBlur={field.handleBlur} maxLength={MAX_CONTENT} spellCheck={false} disabled={!ready || busy} />}</form.Field><p className="character-count">{values.content.length.toLocaleString()} / {MAX_CONTENT.toLocaleString()} characters</p></section>
-              <section className="preview-pane" aria-label="Markdown preview"><h2>Preview</h2><MarkdownPreview content={values.content} /></section>
-            </div>
-          </> : <div className="empty-state"><h2>Your library is empty.</h2><p>Create a document to start writing. Saved documents stay in this browser.</p><button className="primary" onClick={() => request({ kind: "new" })}>Create a document</button></div>}
         </main>
       </div>
-      {prompt?.kind === "unsaved" && <NativeDialog error={dialogError} key={prompt.kind} title="Save your changes?" onCancel={() => { if (!busy) setPrompt(null); }}><p>Your edits to “{values.name || "untitled document"}” have not been saved.</p><div className="button-row"><button autoFocus disabled={busy} onClick={() => setPrompt(null)}>Cancel</button><button disabled={busy} onClick={() => void continueUnsaved("discard")}>Discard changes</button><button className="primary" disabled={busy} onClick={() => void continueUnsaved("save")}>Save and continue</button></div></NativeDialog>}
-      {prompt?.kind === "delete" && <NativeDialog error={dialogError} key={prompt.kind} title={`Delete “${prompt.name}”?`} onCancel={() => { if (!busy) setPrompt(null); }}><p>This removes only this document from this browser. Download a copy first if you want to keep it.</p><div className="button-row"><button autoFocus disabled={busy} onClick={() => setPrompt(null)}>Cancel</button><button className="danger" disabled={busy} onClick={() => void confirmDelete()}>Delete document</button></div></NativeDialog>}
-      {prompt?.kind === "reset" && <NativeDialog error={dialogError} key={prompt.kind} title="Reset unreadable saved documents?" onCancel={() => { if (!busy) setPrompt(null); }}><p>This replaces the unreadable library with the two source examples. Download the storage backup and your current draft first. Other tabs’ newer changes will never be overwritten.</p><div className="button-row"><button autoFocus disabled={busy} onClick={() => setPrompt(null)}>Cancel</button><button className="danger" disabled={busy} onClick={() => void resetInvalid()}>Reset library</button></div></NativeDialog>}
+      {prompt?.kind === "unsaved" && <NativeDialog error={dialogError} key={prompt.kind} title="Save your changes?" onCancel={cancelPrompt}><p>Your edits to “{values.name || "untitled document"}” have not been saved.</p><div className="button-row"><button autoFocus onClick={cancelPrompt}>Cancel</button><button onClick={() => void continueUnsaved("discard")}>Discard changes</button><button className="primary" aria-busy={busy} onClick={() => void continueUnsaved("save")}>{busy && <span className="spinner" aria-hidden="true" />}Save and continue</button></div></NativeDialog>}
+      {prompt?.kind === "delete" && <NativeDialog error={dialogError} key={prompt.kind} title={`Delete “${prompt.name}”?`} onCancel={cancelPrompt}><p>This removes only this document from this browser. Download a copy first if you want to keep it.</p><div className="button-row"><button autoFocus onClick={cancelPrompt}>Cancel</button><button className="danger" aria-busy={busy} onClick={() => void confirmDelete()}>{busy && <span className="spinner" aria-hidden="true" />}Delete document</button></div></NativeDialog>}
+      {prompt?.kind === "reset" && <NativeDialog error={dialogError} key={prompt.kind} title="Reset unreadable saved documents?" onCancel={cancelPrompt}><p>This replaces the unreadable library with the two source examples. Download the storage backup and your current draft first. Other tabs’ newer changes will never be overwritten.</p><div className="button-row"><button autoFocus onClick={cancelPrompt}>Cancel</button><button className="danger" aria-busy={busy} onClick={() => void resetInvalid()}>{busy && <span className="spinner" aria-hidden="true" />}Reset library</button></div></NativeDialog>}
     </div>;
   }}</form.Subscribe>;
 }

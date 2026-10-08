@@ -5,3 +5,5 @@ node_modules/
 .test-state/
 *.tsbuildinfo
 next-env.d.ts
+playwright-report/
+test-results/

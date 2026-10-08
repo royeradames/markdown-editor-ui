@@ -23,6 +23,11 @@ export type Intent = { kind: "select"; id: string } | { kind: "new" } | { kind: 
 export function selectedDocument(library: Library): Document | null {
   return library.documents.find((doc) => doc.id === library.selectedId) ?? null;
 }
+// A record stays a source example until the user saves it (saveDocument stamps updatedAt).
+// Library-level writes such as the theme or the selected document never change that.
+export function isSourceExample(doc: Document): boolean {
+  return doc.updatedAt === 0;
+}
 export function hasUnsavedChanges(saved: Document | undefined, draft: Draft): boolean {
   return !saved || saved.name !== draft.name || saved.content !== draft.content;
 }

@@ -49,7 +49,7 @@ test("create, save, rename and reload exact text without mutating the source exa
   assert.deepEqual(before.documents.slice(0, 2), exampleLibrary.documents);
   await page.reload();
   await page.getByLabel("Document name", { exact: true }).waitFor();
-  await page.waitForFunction(() => document.querySelector(".document-heading input")?.value === "renamed.md");
+  await page.waitForFunction(() => document.querySelector("#document-name")?.value === "renamed.md");
   assert.equal(await page.getByRole("textbox", { name: "Markdown content" }).inputValue(), "# First\n\nExact saved content.");
 }));
 
@@ -64,12 +64,12 @@ test("unsaved switch offers cancel, discard and save; search never switches the 
   await page.getByLabel("Search documents").press("Escape");
   await page.getByRole("button", { name: /untitled-document.md Source example/ }).click();
   await page.getByRole("button", { name: "Discard changes", exact: true }).click();
-  await page.waitForFunction(() => document.querySelector(".document-heading input")?.value === "untitled-document.md");
+  await page.waitForFunction(() => document.querySelector("#document-name")?.value === "untitled-document.md");
   assert.equal(await editor.inputValue(), "# Untitled Document");
   await editor.fill("# Keep this edit");
   await page.getByRole("button", { name: /welcome.md Source example/ }).click();
   await page.getByRole("button", { name: "Save and continue", exact: true }).click();
-  await page.waitForFunction(() => document.querySelector(".document-heading input")?.value === "welcome.md");
+  await page.waitForFunction(() => document.querySelector("#document-name")?.value === "welcome.md");
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);
   assert.equal(saved.documents[0].content, "# Keep this edit");
 }));
@@ -112,6 +112,8 @@ test("malformed storage is retained until explicit reset and its dialog can be c
   assert.equal(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY), "broken-json");
   await page.getByRole("button", { name: "Reset saved library", exact: true }).click();
   await page.getByRole("button", { name: "Reset library", exact: true }).click();
+  // The reset write is asynchronous (Web Lock + compare); wait for it rather than racing it.
+  await page.waitForFunction((key) => localStorage.getItem(key) !== "broken-json", STORAGE_KEY);
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);
   assert.equal(saved.documents.length, 2);
 }, () => { localStorage.setItem("markdown-editor-library-v1", "broken-json"); }));
@@ -161,19 +163,21 @@ test("400/768/1440 layouts, both themes, mobile view and expanded preview preser
   for (const width of [400, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ["light", "dark"]) {
-      if (width < 768 && !await page.locator("#documents-panel").isVisible()) await page.getByRole("button", { name: "Documents", exact: true }).click();
+      // Below 1100px the sidebar is a drawer behind the Documents menu button.
+      if (width < 1100 && !await page.locator("#documents-panel").isVisible()) await page.getByRole("button", { name: "Documents", exact: true }).click();
       if (await page.locator(".editor-app").getAttribute("data-theme") !== theme) await page.getByRole("button", { name: `Use ${theme} theme`, exact: true }).click();
       await page.locator(`[data-theme="${theme}"]`).waitFor();
-      if (width < 768) await page.getByRole("button", { name: "Documents", exact: true }).click();
+      if (width < 1100) await page.getByRole("button", { name: "Documents", exact: true }).click();
       const geometry = await page.evaluate(() => ({ overflow: document.documentElement.scrollWidth > innerWidth, size: getComputedStyle(document.querySelector("textarea")).fontSize }));
       assert.equal(geometry.overflow, false); assert.equal(geometry.size, "16px");
       await page.screenshot({ path: `.test-state/editor-${width}-${theme}.png`, fullPage: true });
     }
   }
   const content = await page.getByRole("textbox", { name: "Markdown content" }).inputValue();
-  await page.getByRole("button", { name: "Expand preview", exact: true }).click();
+  const previewOnly = page.locator(".preview-pane").getByRole("button", { name: "Preview only", exact: true });
+  await previewOnly.click();
   assert.equal(await page.locator(".edit-pane").isVisible(), false);
-  await page.getByRole("button", { name: "Exit expanded preview", exact: true }).click();
+  await previewOnly.click();
   assert.equal(await page.getByRole("textbox", { name: "Markdown content" }).inputValue(), content);
   await page.reload(); await page.locator('[data-theme="dark"]').waitFor();
 }));
@@ -189,7 +193,7 @@ test("keyboard create/save/delete cancellation keeps focus and draft", async () 
   const create = page.getByRole("button", { name: "+ New document", exact: true });
   await create.focus(); await page.keyboard.press("Enter");
   const name = page.getByLabel("Document name", { exact: true });
-  await page.waitForFunction(() => document.activeElement === document.querySelector(".document-heading input"));
+  await page.waitForFunction(() => document.activeElement === document.querySelector("#document-name"));
   await name.fill("keyboard.md"); await page.getByRole("textbox", { name: "Markdown content" }).fill("Keyboard draft");
   const saveButton = page.getByRole("button", { name: "Save changes", exact: true });
   await saveButton.focus(); await page.keyboard.press("Enter"); await page.getByText("Saved in this browser.", { exact: true }).waitFor();
@@ -211,7 +215,7 @@ test("same-mounted save, rerender and repeat save preserve the edited document a
   assert.equal(await name.inputValue(), "saved-version.md");
   assert.equal(await content.inputValue(), "# Saved version\n\nKeep this exact text.");
   await page.locator(".rendered-markdown h1").getByText("Saved version", { exact: true }).waitFor();
-  assert.equal(await page.locator(".document-heading [role=status]").innerText(), "Saved version");
+  assert.equal(await page.locator(".status-bar [role=status]").innerText(), "Saved version");
   const first = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);
   await save(page);
   const second = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);
@@ -221,7 +225,7 @@ test("same-mounted save, rerender and repeat save preserve the edited document a
   assert.equal(saved.name, "saved-version.md"); assert.equal(saved.content, "# Saved version\n\nKeep this exact text.");
   assert.equal(await name.inputValue(), saved.name); assert.equal(await content.inputValue(), saved.content);
   await page.reload();
-  await page.waitForFunction(() => document.querySelector(".document-heading input")?.value === "saved-version.md");
+  await page.waitForFunction(() => document.querySelector("#document-name")?.value === "saved-version.md");
   assert.equal(await content.inputValue(), saved.content);
 }));
 
@@ -235,7 +239,7 @@ test("discard before delete then cancel restores the latest saved version in the
   const dialog = page.getByRole("dialog", { name: "Delete “latest.md”?", exact: true });
   await dialog.waitFor(); await page.keyboard.press("Escape");
   assert.equal(await name.inputValue(), "latest.md"); assert.equal(await content.inputValue(), "# Latest saved");
-  assert.equal(await page.locator(".document-heading [role=status]").innerText(), "Saved version");
+  assert.equal(await page.locator(".status-bar [role=status]").innerText(), "Saved version");
   await save(page);
   const snapshot = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);
   const saved = snapshot.documents.find((doc) => doc.id === snapshot.selectedId);
@@ -273,5 +277,5 @@ test("storage failure during Save and continue is accessible inside the dialog a
   await page.keyboard.press("Escape");
   assert.equal(await other.evaluate((node) => node === document.activeElement), true);
   assert.equal(await content.inputValue(), "Retain this quota-safe draft");
-  assert.equal(await page.locator(".document-heading [role=status]").innerText(), "Unsaved changes");
+  assert.equal(await page.locator(".status-bar [role=status]").innerText(), "Unsaved changes");
 }, () => { Storage.prototype.setItem = () => { throw new DOMException("Full", "QuotaExceededError"); }; }));
