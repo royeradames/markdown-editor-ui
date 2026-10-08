@@ -1,8 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
-import { deleteDocument, hasUnsavedChanges, isSourceExample, librarySchema, MAX_CONTENT, newDocument, saveDocument } from "../lib/documents.ts";
+import { addDocument, deleteDocument, documentDate, hasUnsavedChanges, librarySchema, MAX_CONTENT, saveDocument } from "../lib/documents.ts";
 import { exampleLibrary } from "../lib/examples.ts";
 import { readLibrary, STORAGE_KEY, writeLibrary, type Exclusive, type StoragePort } from "../lib/browser-storage.ts";
 import { safeLink } from "../lib/markdown-policy.ts";
@@ -25,17 +24,17 @@ test("delete-middle/create uses UUID identity and does not mutate another docume
   const added = saveDocument(exampleLibrary, id, { name: "third.md", content: "third" }, 1);
   const removed = deleteDocument(added, second.id);
   const fourthId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-  const final = saveDocument(removed, fourthId, newDocument(fourthId), 2);
+  const final = addDocument(removed, fourthId, 2);
   assert.equal(new Set(final.documents.map((doc) => doc.id)).size, 3);
   assert.deepEqual(final.documents[0], first);
   assert.equal(exampleLibrary.documents.length, 2);
 });
-test("draft edits remain separate from saved records; new unsaved document always needs an intent decision", () => {
+test("draft edits remain separate from saved records; an unknown record always counts as unsaved", () => {
   const saved = exampleLibrary.documents[1]; assert.ok(saved);
   assert.equal(hasUnsavedChanges(saved, saved), false);
   assert.equal(hasUnsavedChanges(saved, { ...saved, name: "renamed.md" }), true);
   assert.equal(hasUnsavedChanges(saved, { ...saved, content: "changed" }), true);
-  assert.equal(hasUnsavedChanges(undefined, newDocument(id)), true);
+  assert.equal(hasUnsavedChanges(undefined, { name: "untitled-document.md", content: "" }), true);
   assert.equal(saved.name, "welcome.md");
 });
 test("last-document deletion has a defined empty selection", () => {
@@ -78,22 +77,27 @@ test("link policy rejects scripts, data, protocol-relative, credentials and cont
   assert.equal(safeLink("https://example.com/doc"), "https://example.com/doc");
   assert.equal(safeLink("mailto:reader@example.com"), "mailto:reader@example.com");
 });
-test("both preserved examples still match their original source text", async () => {
-  const raw = await readFile(new URL("../legacy/angular/src/app/docs.ts", import.meta.url), "utf8");
-  assert.equal(createHash("sha256").update(raw).digest("hex"), "8f15d993d0457c91a8febc2d5479f8c8fc985b4381069d3b4a79d903068dc7ed");
-  const entries = [...raw.matchAll(/title: '([^']+)',\s*content: `((?:\\.|[^`])*)`/gs)];
-  assert.equal(entries.length, 2);
-  for (const [index, entry] of entries.entries()) {
-    assert.equal(exampleLibrary.documents[index]?.name, entry[1]);
-    assert.equal(exampleLibrary.documents[index]?.content, entry[2]?.replaceAll("\\`", "`"));
-  }
+test("the sample library is the official starter data.json, dated 01 April 2022", async () => {
+  const raw = await readFile(new URL("../starter/data.json", import.meta.url), "utf8");
+  const official = JSON.parse(raw) as { createdAt: string; name: string; content: string }[];
+  assert.deepEqual(exampleLibrary.documents.map(({ name, content }) => ({ name, content })), official.map(({ name, content }) => ({ name, content })));
+  for (const doc of exampleLibrary.documents) assert.equal(documentDate(doc), "01 April 2022");
+  assert.ok(official.every((doc) => doc.createdAt === "04-01-2022"));
 });
 
-test("only a user save ends a source example; theme and selection writes do not", () => {
-  const welcome = exampleLibrary.documents[1]; assert.ok(welcome);
-  const themed = librarySchema.parse({ ...exampleLibrary, theme: "dark", selectedId: exampleLibrary.documents[0]?.id });
-  assert.ok(themed.documents.every(isSourceExample));
-  const saved = saveDocument(themed, welcome.id, { name: welcome.name, content: "# Mine" }, 1_700_000_000_000);
-  assert.equal(isSourceExample(saved.documents.find((doc) => doc.id === welcome.id)!), false);
-  assert.equal(isSourceExample(saved.documents.find((doc) => doc.id !== welcome.id)!), true);
+test("IDs are never reused: delete then add yields a new ID, and a duplicate ID is refused", () => {
+  const added = addDocument(exampleLibrary, id, 10);
+  const removed = deleteDocument(added, id);
+  const nextId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const again = addDocument(removed, nextId, 20);
+  assert.deepEqual(again.documents.map((doc) => doc.id), [...exampleLibrary.documents.map((doc) => doc.id), nextId]);
+  assert.equal(again.selectedId, nextId);
+  assert.throws(() => addDocument(again, nextId, 30));
+});
+
+test("saving keeps a document's creation date and stamps its update", () => {
+  const added = addDocument(exampleLibrary, id, 1_000);
+  const saved = saveDocument(added, id, { name: "renamed.md", content: "# Body" }, 5_000);
+  const doc = saved.documents.find((item) => item.id === id);
+  assert.equal(doc?.createdAt, 1_000); assert.equal(doc?.updatedAt, 5_000); assert.equal(doc?.name, "renamed.md");
 });

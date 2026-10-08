@@ -10,7 +10,7 @@ const robotoSlab = localFont({ src: "../node_modules/@fontsource-variable/roboto
 const robotoMono = localFont({ src: "../node_modules/@fontsource-variable/roboto-mono/files/roboto-mono-latin-wght-normal.woff2", weight: "100 700", variable: "--font-mono", display: "swap" });
 
 const SITE_NAME = "Markdown";
-const SITE_URL = "https://markdown-editor-ui.vercel.app/";
+const SITE_URL = "https://markdown-editor-ui.royeradames.com/";
 const title = "Markdown | Write and preview documents in this browser";
 const description = "Write and preview Markdown, with explicit saves in this browser. No account or cloud synchronization.";
 
@@ -23,11 +23,14 @@ export const metadata: Metadata = {
 };
 
 const website = { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: SITE_URL };
+// Runs before first paint: the saved theme (or, with nothing saved, the system preference) so a dark reload never flashes light.
+const themeScript = `try{var t;var r=localStorage.getItem("markdown-editor-library-v1");if(r){t=JSON.parse(r).theme}if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}`;
 
 export default function Layout({ children }: { children: ReactNode }) {
-  return <html lang="en" className={`${roboto.variable} ${robotoSlab.variable} ${robotoMono.variable}`}><body>
+  return <html lang="en" className={`${roboto.variable} ${robotoSlab.variable} ${robotoMono.variable}`} suppressHydrationWarning><body>
+    <script dangerouslySetInnerHTML={{ __html: themeScript }} />
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }} />
     {children}
-    <noscript><p className="noscript">JavaScript is needed to edit and save in this browser. The source examples below remain readable.</p></noscript>
+    <noscript><p className="noscript">JavaScript is needed to edit and save in this browser. The starter document below remains readable.</p></noscript>
   </body></html>;
 }
