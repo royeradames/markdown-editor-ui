@@ -59,3 +59,9 @@ test("an empty document name is refused with a message and focus on the name", a
   await expect(page.getByRole("main").getByRole("alert")).toHaveText("Give the document a name.");
   await expect(name).toBeFocused();
 });
+
+test("every text input declares its type (HTML validation)", async ({ page }) => {
+  await open(page);
+  const untyped = await page.evaluate(() => [...document.querySelectorAll("input:not([type])")].map((input) => input.id || input.outerHTML.slice(0, 80)));
+  expect(untyped).toEqual([]);
+});
