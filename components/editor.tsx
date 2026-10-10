@@ -369,7 +369,7 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
             <DocumentIcon />
             <form.Field name="name">{(field) => <div className="document-name-field">
               <label htmlFor="document-name">Document Name</label>
-              <input id="document-name" ref={nameRef} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} maxLength={80} spellCheck={false} autoComplete="off" />
+              <input id="document-name" type="text" ref={nameRef} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} maxLength={80} spellCheck={false} autoComplete="off" />
             </div>}</form.Field>
           </div>}
           {opened && <div className="document-actions">
