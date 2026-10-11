@@ -335,14 +335,17 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   function search(next: string) { setQuery(next); setLimit(LIST_STEP); }
   function clearSearch() { search(""); searchRef.current?.focus(); }
   // Show more can disappear with the last rows, so focus moves to the first row it revealed once they render.
-  const focusRow = useRef<number | null>(null);
+  // Rows are matched by id: the open document may already have been listed out of order.
+  const shownBefore = useRef<Set<string> | null>(null);
   useEffect(() => {
-    if (focusRow.current === null) return;
-    listRef.current?.querySelectorAll<HTMLButtonElement>(".document-link")[focusRow.current]?.focus();
-    focusRow.current = null;
+    const before = shownBefore.current;
+    if (!before) return;
+    shownBefore.current = null;
+    const links = listRef.current?.querySelectorAll<HTMLButtonElement>(".document-link") ?? [];
+    [...links].find((link) => !before.has(link.dataset.documentId ?? ""))?.focus();
   }, [limit]);
-  function showMore(firstNew: number) {
-    focusRow.current = firstNew;
+  function showMore(shownIds: string[]) {
+    shownBefore.current = new Set(shownIds);
     setLimit((current) => current + LIST_STEP);
   }
 
@@ -384,13 +387,13 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
           {ready && list.searchable && list.matched === 0 && <button type="button" className="list-button" onClick={clearSearch}>Clear search</button>}
           <ul ref={listRef} className="document-list">
             {ready && list.shown.map((doc) => <li key={doc.id}>
-              <button type="button" className="document-link" aria-current={doc.id === opened?.id ? "page" : undefined} onClick={() => request({ kind: "select", id: doc.id })}>
+              <button type="button" className="document-link" data-document-id={doc.id} aria-current={doc.id === opened?.id ? "page" : undefined} onClick={() => request({ kind: "select", id: doc.id })}>
                 <DocumentIcon />
                 <span className="document-meta"><span className="document-title">{doc.name}</span><span className="document-date">{documentDate(doc)}</span></span>
               </button>
             </li>)}
           </ul>
-          {ready && list.matched > list.shown.length && <button type="button" className="list-button" onClick={() => showMore(limit)}>Show more documents</button>}
+          {ready && list.matched > list.shown.length && <button type="button" className="list-button" onClick={() => showMore(list.shown.map((doc) => doc.id))}>Show more documents</button>}
           {!documents.length && <p className="sidebar-empty">No documents yet.</p>}
           <div className="theme-toggle" data-theme-active={theme}>
             <MoonIcon />

@@ -83,6 +83,17 @@ test("the open document stays listed after the first 10 and marked current", asy
   await expect(items(page).nth(10).getByRole("button")).toBeFocused();
 });
 
+test("when the open document is the 11th newest, Show more focuses the first row it revealed", async ({ page }) => {
+  // doc-20 is the 11th newest of 30, so it already sits in place as row 11 before Show more.
+  await open(page, 30, undefined, 19);
+  await expect(items(page)).toHaveCount(11);
+  await expect(items(page).nth(10)).toContainText("doc-20.md");
+  await panel(page).getByRole("button", { name: "Show more documents", exact: true }).click();
+  await expect(items(page)).toHaveCount(20);
+  await expect(items(page).nth(11).getByRole("button")).toBeFocused();
+  await expect(items(page).nth(11)).toContainText("doc-19.md");
+});
+
 test("Escape clears the document search first, then closes the drawer", async ({ page }) => {
   await open(page, 30);
   await search(page).fill("doc-3");
