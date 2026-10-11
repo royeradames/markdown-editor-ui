@@ -75,6 +75,14 @@ h1, h2, p { margin: 0; }
 .sidebar h2 { font-size: 16px; font-weight: 500; line-height: 1.15; letter-spacing: 2px; text-transform: uppercase; color: var(--chrome-muted); }
 .new-document { width: 100%; margin-top: 29px; }
 .document-list { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 16px; }
+/* Search, count and Show more appear once the library passes 10 documents. The input edge is #7c8187 for a 3:1 boundary on the drawer. */
+.document-search { display: grid; gap: 8px; margin-top: 24px; }
+.document-search label { font-size: 16px; line-height: 1.2; color: var(--chrome-muted); }
+.document-search input { width: 100%; min-width: 0; min-height: 40px; padding: 8px 12px; border: 1px solid #7c8187; border-radius: 4px; background: var(--chrome); color: #fff; font-size: 16px; }
+.document-search input::placeholder { color: var(--chrome-muted); opacity: 1; }
+.list-status { margin-top: 16px; font-size: 16px; line-height: 1.4; color: var(--chrome-muted); overflow-wrap: anywhere; }
+.list-button { width: 100%; min-height: 40px; margin-top: 16px; padding: 8px 16px; border: 1px solid #7c8187; border-radius: 4px; color: #fff; line-height: 1.2; transition: border-color .15s; }
+.list-button:hover { border-color: var(--orange); }
 .document-link { display: flex; align-items: center; gap: 16px; width: 100%; padding: 4px 0; text-align: left; border-radius: 4px; }
 .document-link svg { flex: none; }
 /* The name is read first; the date sits above it visually, as in the design. */

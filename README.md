@@ -10,6 +10,7 @@ A Next.js build of the Frontend Mentor "In-browser markdown editor" challenge. D
 - Name a document in the header and save it with **Save Changes**. Edits stay a draft until saved; switching documents with unsaved edits offers Save & Continue, Discard changes or Cancel.
 - Edit beside a live preview, or use the eye toggle for a full-width preview. Phones show one pane at a time and the eye swaps them.
 - The Documents drawer sits behind the menu button at every width and pushes the app 250px right, as in the design. Escape closes it and returns focus to the button.
+- The drawer lists documents newest first, so a new one appears at the top. Past 10 documents it adds **Search documents** (by name), shows 10 at a time with "Showing X of Y documents" and **Show more documents**, and the first Escape clears a search before the next one closes the drawer.
 - Light and dark themes from the switch in the drawer. A first visit follows the system setting; the choice is saved and painted before the page hydrates.
 - First load shows the starter's two documents from `starter/data.json` (the challenge packet's `data.json`, verbatim), dated 01 April 2022.
 
