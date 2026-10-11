@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useForm } from "@tanstack/react-form";
-import { addDocument, deleteDocument, documentDate, draftSchema, hasUnsavedChanges, MAX_CONTENT, MAX_DOCUMENTS, saveDocument, selectedDocument, type Document, type Draft, type Intent, type Library } from "../lib/documents.ts";
+import { addDocument, deleteDocument, documentDate, documentList, draftSchema, LIST_STEP, hasUnsavedChanges, MAX_CONTENT, MAX_DOCUMENTS, saveDocument, selectedDocument, type Document, type Draft, type Intent, type Library } from "../lib/documents.ts";
 import { browserExclusive, readLibrary, STORAGE_KEY, writeLibrary, type ReadResult, type Snapshot } from "../lib/browser-storage.ts";
 import { exampleLibrary } from "../lib/examples.ts";
 import { MarkdownPreview } from "./markdown-preview";
@@ -134,6 +134,10 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   const menuRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const toggleRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(LIST_STEP);
   const theme = snapshot.library.theme;
 
   useEffect(() => {
@@ -328,7 +332,25 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
     });
   }
 
+  function search(next: string) { setQuery(next); setLimit(LIST_STEP); }
+  function clearSearch() { search(""); searchRef.current?.focus(); }
+  // Show more can disappear with the last rows, so focus moves to the first row it revealed once they render.
+  const focusRow = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusRow.current === null) return;
+    listRef.current?.querySelectorAll<HTMLButtonElement>(".document-link")[focusRow.current]?.focus();
+    focusRow.current = null;
+  }, [limit]);
+  function showMore(firstNew: number) {
+    focusRow.current = firstNew;
+    setLimit((current) => current + LIST_STEP);
+  }
+
   const documents = snapshot.library.documents;
+  const list = documentList(documents, query, limit);
+  const listStatus = !list.searchable ? "" : list.matched === 0 ? `No documents match “${query.trim()}”.`
+    : query.trim() ? `Showing ${list.shown.length} of ${list.matched} matching ${list.matched === 1 ? "document" : "documents"}.`
+    : `Showing ${list.shown.length} of ${list.total} documents. Newest first.`;
   return <form.Subscribe selector={(state) => state.values}>{(values) => {
     const previewToggle = (index: number) => <button
       ref={(node) => { toggleRefs.current[index] = node; }}
@@ -348,14 +370,27 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
         <aside ref={panelRef} id="documents-panel" className="sidebar" aria-labelledby="documents-heading" inert={!drawer}>
           <h2 id="documents-heading">My documents</h2>
           <button type="button" className="button-primary new-document" onClick={() => request({ kind: "new" })}>+ New Document</button>
-          <ul className="document-list">
-            {ready && documents.map((doc) => <li key={doc.id}>
+          {ready && list.searchable && <div className="document-search">
+            <label htmlFor="document-search">Search documents</label>
+            <input id="document-search" ref={searchRef} type="search" value={query} placeholder="Find by name" autoComplete="off" spellCheck={false}
+              onChange={(event) => search(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Escape" || query === "") return;
+                // The first Escape clears the search; the next one closes the drawer.
+                event.preventDefault(); event.stopPropagation(); search("");
+              }} />
+          </div>}
+          {ready && list.searchable && <p className="list-status" role="status">{listStatus}</p>}
+          {ready && list.searchable && list.matched === 0 && <button type="button" className="list-button" onClick={clearSearch}>Clear search</button>}
+          <ul ref={listRef} className="document-list">
+            {ready && list.shown.map((doc) => <li key={doc.id}>
               <button type="button" className="document-link" aria-current={doc.id === opened?.id ? "page" : undefined} onClick={() => request({ kind: "select", id: doc.id })}>
                 <DocumentIcon />
                 <span className="document-meta"><span className="document-title">{doc.name}</span><span className="document-date">{documentDate(doc)}</span></span>
               </button>
             </li>)}
           </ul>
+          {ready && list.matched > list.shown.length && <button type="button" className="list-button" onClick={() => showMore(list.shown.length)}>Show more documents</button>}
           {!documents.length && <p className="sidebar-empty">No documents yet.</p>}
           <div className="theme-toggle" data-theme-active={theme}>
             <MoonIcon />

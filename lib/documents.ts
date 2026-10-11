@@ -45,6 +45,19 @@ export function addDocument(library: Library, id: string, now: number): Library 
   const document = documentSchema.parse({ id, name: "untitled-document.md", content: "", createdAt: now, updatedAt: now });
   return librarySchema.parse({ ...library, selectedId: id, documents: [...library.documents, document] });
 }
+// The documents drawer: newest first, a name search once the library passes SEARCH_ABOVE, and LIST_STEP rows at a time.
+export const SEARCH_ABOVE = 10;
+export const LIST_STEP = 10;
+export type DocumentListView = { shown: Document[]; matched: number; total: number; searchable: boolean };
+export function documentList(documents: Document[], query: string, limit: number): DocumentListView {
+  const needle = query.trim().toLocaleLowerCase();
+  const created = (doc: Document) => doc.createdAt ?? doc.updatedAt;
+  // Array sort is stable, so documents created in the same millisecond keep their stored order.
+  const matches = [...documents]
+    .sort((a, b) => created(b) - created(a))
+    .filter((doc) => !needle || doc.name.toLocaleLowerCase().includes(needle));
+  return { shown: matches.slice(0, limit), matched: matches.length, total: documents.length, searchable: documents.length > SEARCH_ABOVE };
+}
 const dateOptions = { day: "2-digit", month: "long", year: "numeric" } as const;
 const localDate = new Intl.DateTimeFormat("en-GB", dateOptions);
 const calendarDate = new Intl.DateTimeFormat("en-GB", { ...dateOptions, timeZone: "UTC" });
