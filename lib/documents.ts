@@ -49,14 +49,18 @@ export function addDocument(library: Library, id: string, now: number): Library 
 export const SEARCH_ABOVE = 10;
 export const LIST_STEP = 10;
 export type DocumentListView = { shown: Document[]; matched: number; total: number; searchable: boolean };
-export function documentList(documents: Document[], query: string, limit: number): DocumentListView {
+// The open document always stays listed: past the limit it follows the shown rows, so the current choice is never hidden.
+export function documentList(documents: Document[], query: string, limit: number, openId?: string | null): DocumentListView {
   const needle = query.trim().toLocaleLowerCase();
   const created = (doc: Document) => doc.createdAt ?? doc.updatedAt;
   // Array sort is stable, so documents created in the same millisecond keep their stored order.
   const matches = [...documents]
     .sort((a, b) => created(b) - created(a))
     .filter((doc) => !needle || doc.name.toLocaleLowerCase().includes(needle));
-  return { shown: matches.slice(0, limit), matched: matches.length, total: documents.length, searchable: documents.length > SEARCH_ABOVE };
+  const shown = matches.slice(0, limit);
+  const open = matches.findIndex((doc) => doc.id === openId);
+  if (open >= limit) shown.push(matches[open]!);
+  return { shown, matched: matches.length, total: documents.length, searchable: documents.length > SEARCH_ABOVE };
 }
 const dateOptions = { day: "2-digit", month: "long", year: "numeric" } as const;
 const localDate = new Intl.DateTimeFormat("en-GB", dateOptions);

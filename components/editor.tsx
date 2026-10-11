@@ -347,7 +347,7 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
   }
 
   const documents = snapshot.library.documents;
-  const list = documentList(documents, query, limit);
+  const list = documentList(documents, query, limit, opened?.id);
   const listStatus = !list.searchable ? "" : list.matched === 0 ? `No documents match “${query.trim()}”.`
     : query.trim() ? `Showing ${list.shown.length} of ${list.matched} matching ${list.matched === 1 ? "document" : "documents"}.`
     : `Showing ${list.shown.length} of ${list.total} documents. Newest first.`;
@@ -390,7 +390,7 @@ function Workspace({ initial, document: opened, ready, onOpen, onSaved, issueAtO
               </button>
             </li>)}
           </ul>
-          {ready && list.matched > list.shown.length && <button type="button" className="list-button" onClick={() => showMore(list.shown.length)}>Show more documents</button>}
+          {ready && list.matched > list.shown.length && <button type="button" className="list-button" onClick={() => showMore(limit)}>Show more documents</button>}
           {!documents.length && <p className="sidebar-empty">No documents yet.</p>}
           <div className="theme-toggle" data-theme-active={theme}>
             <MoonIcon />

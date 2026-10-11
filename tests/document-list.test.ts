@@ -60,3 +60,15 @@ test("documents created at the same moment keep their stored order", () => {
   const same = [{ ...a, createdAt: 5 }, { ...b, createdAt: 5 }];
   assert.deepEqual(documentList(same, "", LIST_STEP).shown.map((doc) => doc.name), ["doc-1.md", "doc-2.md"]);
 });
+
+test("the open document stays listed after the shown rows, and only once", () => {
+  const docs = library(100);
+  const oldest = "00000000-0000-4000-8000-000000000001";
+  const view = documentList(docs, "", LIST_STEP, oldest);
+  assert.equal(view.shown.length, LIST_STEP + 1);
+  assert.equal(view.shown.at(-1)?.id, oldest);
+  assert.equal(documentList(docs, "", 100, oldest).shown.filter((doc) => doc.id === oldest).length, 1);
+  assert.equal(documentList(docs, "", LIST_STEP, "00000000-0000-4000-8000-000000000100").shown.length, LIST_STEP);
+  // A search that leaves the open document out doesn't bring it back.
+  assert.ok(documentList(docs, "doc-5", LIST_STEP, oldest).shown.every((doc) => doc.name.includes("doc-5")));
+});

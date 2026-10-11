@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 const STORAGE_KEY = "markdown-editor-library-v1";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-function seed(count: number) {
+function seed(count: number, open = count - 1) {
   const documents = Array.from({ length: count }, (_, index) => ({
     id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
     name: `doc-${index + 1}.md`,
@@ -12,17 +12,17 @@ function seed(count: number) {
     createdAt: Date.UTC(2026, 0, 1) + index * 60_000,
     updatedAt: Date.UTC(2026, 0, 1) + index * 60_000,
   }));
-  return { version: 1, revision: "11111111-1111-4111-8111-111111111111", documents, selectedId: documents[0]?.id ?? null, theme: "light" };
+  return { version: 1, revision: "11111111-1111-4111-8111-111111111111", documents, selectedId: documents[open]?.id ?? null, theme: "light" };
 }
 
-async function open(page: Page, count: number, viewport = { width: 1440, height: 1000 }) {
+async function open(page: Page, count: number, viewport = { width: 1440, height: 1000 }, openIndex = count - 1) {
   await page.setViewportSize(viewport);
   // Seed once per library size, so later navigations keep what the test saved.
   await page.addInitScript(({ key, library, count }) => {
     if (localStorage.getItem("test-seeded-count") === String(count)) return;
     localStorage.setItem(key, JSON.stringify(library));
     localStorage.setItem("test-seeded-count", String(count));
-  }, { key: STORAGE_KEY, library: seed(count), count });
+  }, { key: STORAGE_KEY, library: seed(count, openIndex), count });
   await page.goto("/");
   await page.waitForFunction(() => document.querySelector(".editor-app")?.getAttribute("data-ready") === "true");
   await page.getByRole("button", { name: "Documents", exact: true }).click();
@@ -69,6 +69,19 @@ for (const count of [30, 100]) {
     await expect(items(page)).toHaveCount(10);
   });
 }
+
+test("the open document stays listed after the first 10 and marked current", async ({ page }) => {
+  // doc-1 is the oldest of 30, so it would sit in the third block of 10.
+  await open(page, 30, undefined, 0);
+  await expect(items(page)).toHaveCount(11);
+  await expect(items(page).last()).toContainText("doc-1.md");
+  await expect(items(page).last().getByRole("button")).toHaveAttribute("aria-current", "page");
+  await expect(status(page)).toHaveText("Showing 11 of 30 documents. Newest first.");
+  await panel(page).getByRole("button", { name: "Show more documents", exact: true }).click();
+  await expect(items(page)).toHaveCount(21);
+  await expect(items(page).nth(10)).toContainText("doc-20.md");
+  await expect(items(page).nth(10).getByRole("button")).toBeFocused();
+});
 
 test("Escape clears the document search first, then closes the drawer", async ({ page }) => {
   await open(page, 30);
