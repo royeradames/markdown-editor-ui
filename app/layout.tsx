@@ -19,7 +19,6 @@ export const metadata: Metadata = {
   title,
   description,
   openGraph: { title, description, siteName: SITE_NAME, url: SITE_URL, type: "website" },
-  robots: { index: false, follow: false },
 };
 
 const website = { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: SITE_URL };
