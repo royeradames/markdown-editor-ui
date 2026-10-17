@@ -1,4 +1,8 @@
 import * as z from "zod/mini";
+import en from "zod/v4/locales/en.js";
+
+// Zod Mini loads no messages by default; English keeps built-in messages identical to classic Zod.
+z.config(en());
 
 export const MAX_DOCUMENTS = 100;
 export const MAX_CONTENT = 200_000;
