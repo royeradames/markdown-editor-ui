@@ -1,21 +1,22 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 export const MAX_DOCUMENTS = 100;
 export const MAX_CONTENT = 200_000;
 export const MAX_STORAGE_BYTES = 2_000_000;
 export const draftSchema = z.object({
-  name: z.string().trim().min(1, "Give the document a name.").max(80, "Use at most 80 characters."),
-  content: z.string().max(MAX_CONTENT, "A document can contain at most 200,000 characters."),
+  name: z.string().check(z.trim(), z.minLength(1, "Give the document a name."), z.maxLength(80, "Use at most 80 characters.")),
+  content: z.string().check(z.maxLength(MAX_CONTENT, "A document can contain at most 200,000 characters.")),
 });
+const timestamp = () => z.number().check(z.int(), z.nonnegative());
 // createdAt arrived after version 1 shipped; records saved before it fall back to updatedAt for display.
-export const documentSchema = draftSchema.extend({ id: z.uuid(), createdAt: z.number().int().nonnegative().optional(), updatedAt: z.number().int().nonnegative() });
+export const documentSchema = z.extend(draftSchema, { id: z.uuid(), createdAt: z.optional(timestamp()), updatedAt: timestamp() });
 export const librarySchema = z.object({
-  version: z.literal(1), revision: z.uuid(), documents: z.array(documentSchema).max(MAX_DOCUMENTS),
-  selectedId: z.uuid().nullable(), theme: z.enum(["light", "dark"]),
-}).superRefine((value, context) => {
+  version: z.literal(1), revision: z.uuid(), documents: z.array(documentSchema).check(z.maxLength(MAX_DOCUMENTS)),
+  selectedId: z.nullable(z.uuid()), theme: z.enum(["light", "dark"]),
+}).check(z.superRefine((value, context) => {
   if (new Set(value.documents.map((doc) => doc.id)).size !== value.documents.length) context.addIssue({ code: "custom", message: "Document IDs must be unique." });
   if (value.selectedId !== null && !value.documents.some((doc) => doc.id === value.selectedId)) context.addIssue({ code: "custom", message: "The selected document is missing." });
-});
+}));
 export type Document = z.infer<typeof documentSchema>;
 export type Draft = z.infer<typeof draftSchema>;
 export type Library = z.infer<typeof librarySchema>;
