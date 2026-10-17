@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { useForm } from "@tanstack/react-form";
 import { addDocument, deleteDocument, documentDate, documentList, draftSchema, LIST_STEP, hasUnsavedChanges, MAX_CONTENT, MAX_DOCUMENTS, saveDocument, selectedDocument, type Document, type Draft, type Intent, type Library } from "../lib/documents.ts";
 import { browserExclusive, readLibrary, STORAGE_KEY, writeLibrary, type ReadResult, type Snapshot } from "../lib/browser-storage.ts";
 import { exampleLibrary } from "../lib/examples.ts";
-import { MarkdownPreview } from "./markdown-preview";
 import { CheckIcon, CloseIcon, DeleteIcon, DocumentIcon, HidePreviewIcon, LogoIcon, MenuIcon, MoonIcon, SaveIcon, ShowPreviewIcon, SunIcon } from "./icons";
+
+// The Markdown renderer (react-markdown and its parsers) loads after the page is interactive: on phones the preview
+// is hidden until asked for, and the first paint doesn't need it. The empty box keeps the preview's place meanwhile.
+const MarkdownPreview = dynamic(() => import("./markdown-preview").then((module) => module.MarkdownPreview), {
+  ssr: false,
+  loading: () => <div className="rendered-markdown" />,
+});
 
 type Issue = { kind: "invalid"; raw: string; message: string } | { kind: "notice"; message: string } | null;
 type Prompt = { kind: "unsaved"; intent: Intent } | { kind: "delete"; name: string } | { kind: "reset" } | null;
