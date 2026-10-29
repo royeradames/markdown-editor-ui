@@ -1,0 +1,169 @@
+{
+  "_about": "royer-merge change-scoped checks for markdown-editor-ui (agent-toolbox skills/merge/affected-checks.mjs reads this repo-root file before the toolbox's own). Main ships to Vercel at merge; there is no promotion split, so ui-quality-gate and qa only name the pages for the PR body's QA at promotion list.",
+  "profiles": {
+    "markdown-editor-ui": {
+      "remote": "markdown-editor-ui",
+      "docs": [
+        "**/*.md",
+        "**/*.txt",
+        "reference/**",
+        "docs/**",
+        "LICENSE",
+        "legacy/**"
+      ],
+      "instructions": [
+        "AGENTS.md",
+        "**/AGENTS.md",
+        "CLAUDE.md",
+        ".cursor/rules/**"
+      ],
+      "global": [
+        "package.json",
+        "package-lock.json",
+        "bun.lock",
+        "bunfig.toml",
+        ".npmrc",
+        "tsconfig.json",
+        "next.config.ts",
+        "next-env.d.ts",
+        "eslint.config.mjs",
+        "postcss.config.mjs",
+        "vercel.json",
+        ".gitignore",
+        ".affected-checks.json",
+        "app/layout.tsx",
+        "app/globals.css",
+        "playwright.config.ts"
+      ],
+      "checks": [
+        {
+          "name": "typecheck",
+          "what": "tsc --noEmit",
+          "lane": "light",
+          "independent": true,
+          "cmd": "./node_modules/.bin/tsc --noEmit",
+          "when": [
+            "**/*.ts",
+            "**/*.tsx",
+            "**/*.mts"
+          ],
+          "boat": true,
+          "_boat": "Portable: passed on a boat box at the PR head through run-checks.mjs."
+        },
+        {
+          "name": "lint",
+          "what": "eslint . (the repo's lint script)",
+          "lane": "light",
+          "independent": true,
+          "cmd": "./node_modules/.bin/eslint .",
+          "when": [
+            "**/*.ts",
+            "**/*.tsx",
+            "**/*.mts",
+            "**/*.js",
+            "**/*.mjs",
+            "**/*.cjs"
+          ],
+          "boat": true,
+          "_boat": "Portable: passed on a boat box at the PR head through run-checks.mjs."
+        },
+        {
+          "name": "unit",
+          "what": "unit tests",
+          "lane": "light",
+          "independent": true,
+          "cmd": "node --experimental-strip-types --test tests/*.test.ts",
+          "when": [
+            "lib/**",
+            "app/**",
+            "components/**",
+            "starter/**",
+            "tests/*.test.ts"
+          ],
+          "boat": true,
+          "_boat": "Portable: passed on a boat box at the PR head through run-checks.mjs."
+        },
+        {
+          "name": "build",
+          "what": "next build",
+          "lane": "heavy",
+          "cmd": "./node_modules/.bin/next build",
+          "anyCode": true,
+          "boat": true,
+          "_boat": "Portable: passed on a boat box at the PR head through run-checks.mjs (next build needs no secrets here)."
+        },
+        {
+          "name": "own-specs",
+          "what": "the PR's own added or changed Playwright specs, run against next start after the build",
+          "lane": "heavy",
+          "cmd": "./node_modules/.bin/playwright test --workers=1 {list}",
+          "anyCode": true,
+          "list": [
+            "tests/**/*.spec.ts",
+            "tests/**/*.spec.mjs"
+          ],
+          "_boat": "Off boat: playwright.config.ts launches installed Google Chrome (channel: chrome) and serves `npm run start` on a fixed port; the box image has no Chrome. Runs on a Mac lane when a PR adds or changes a spec."
+        },
+        {
+          "name": "ui-quality-gate",
+          "aliases": [
+            "quality-gate"
+          ],
+          "what": "the UI quality gate on the pages the diff reaches; QA runs it, merges skip it",
+          "routes": true,
+          "at": "promotion",
+          "when": [
+            "app/**",
+            "public/**",
+            "components/**",
+            "lib/**",
+            "starter/**"
+          ]
+        },
+        {
+          "name": "qa",
+          "what": "independent royer-qa on the PR's own surface",
+          "at": "promotion",
+          "routes": true,
+          "when": [
+            "app/**",
+            "public/**",
+            "components/**",
+            "lib/**",
+            "starter/**"
+          ],
+          "instructionsToo": true
+        },
+        {
+          "name": "qa-gate",
+          "what": "QA at the head before merge (auth, payments, data, secrets, deploy config)",
+          "carryAs": "qa",
+          "gate": [
+            "app/api/auth/**",
+            "**/auth/**",
+            "middleware.*",
+            "proxy.*",
+            "src/proxy.ts",
+            "app/api/{checkout,payment,payments,billing,stripe,webhooks}/**",
+            "migrations/**",
+            "supabase/**",
+            "prisma/**",
+            "**/db/**",
+            "vercel.json",
+            ".env*",
+            "**/.env*",
+            "setup.json",
+            ".github/workflows/**"
+          ]
+        }
+      ],
+      "setup": "[ -d node_modules ] || if [ -f bun.lock ]; then b=\"${BUN:-$HOME/.bun/bin/bun}\"; [ -x \"$b\" ] || b=$(command -v bun) || { echo 'setup: bun.lock but no bun (set BUN or install ~/.bun/bin/bun)' >&2; exit 1; }; NPM_CONFIG_USERCONFIG=/dev/null \"$b\" install --frozen-lockfile > /dev/null; else npm install --no-audit --no-fund > /dev/null 2>&1; fi",
+      "_setup": "Bun is the package manager (Royer's pick, Oct 27, 2026; packageManager bun@1.4.4, bun.lock). Same string as Answerbar's profile: bun install --frozen-lockfile ignoring ~/.npmrc, npm install on an older branch without bun.lock. Checks call ./node_modules/.bin/<tool> on Node.",
+      "setupWhenMissing": "node_modules",
+      "boat": {
+        "setup": "v=$(node -p \"((require('./package.json').packageManager || '').match(/^bun@(.+)$/) || [])[1] || ''\"); [ -z \"$v\" ] || npm i -g \"bun@$v\" > /dev/null 2>&1; hash -r",
+        "_setup": "Answerbar's box setup: installs the packageManager's Bun (the box image's Bun 1.3.14 can't read bun.lock), then setup runs."
+      }
+    }
+  }
+}
