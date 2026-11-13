@@ -8,13 +8,7 @@ const widths = [
 
 async function open(page: Page) {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Save changes", exact: true })).toBeEnabled();
-}
-
-async function statusAndListLabel(page: Page) {
-  const status = (await page.locator(".status-bar [role=status]").textContent())?.trim() ?? "";
-  const list = (await page.locator('.documents-panel button[aria-current="page"] small').textContent())?.trim() ?? "";
-  return { status, list };
+  await page.waitForFunction(() => document.querySelector(".editor-app")?.getAttribute("data-ready") === "true");
 }
 
 for (const viewport of widths) {
@@ -22,17 +16,19 @@ for (const viewport of widths) {
     await page.setViewportSize(viewport);
     await open(page);
     await page.getByRole("textbox", { name: "Markdown content" }).fill("# Unsaved work");
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("button", { name: "Documents", exact: true }).click();
+    await page.getByRole("button", { name: /untitled-document\.md/ }).click();
     const dialog = page.getByRole("dialog", { name: "Save your changes?" });
     await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
     const box = await dialog.boundingBox();
     expect(box).not.toBeNull();
     const { x, y, width, height } = box!;
     expect(Math.abs(x + width / 2 - viewport.width / 2)).toBeLessThanOrEqual(2);
     expect(Math.abs(y + height / 2 - viewport.height / 2)).toBeLessThanOrEqual(2);
+    expect(width).toBeLessThanOrEqual(343);
     expect(x).toBeGreaterThanOrEqual(16);
-    expect(x + width).toBeLessThanOrEqual(viewport.width - 16);
-    // Design: Confirm Deletion frame dims the page with #000 at 50% behind a 4px-radius modal.
+    // Design: Confirm Deletion frames dim the page with #000 at 50% (light) behind a 4px-radius modal.
     const style = await dialog.evaluate((element) => ({
       backdrop: getComputedStyle(element, "::backdrop").backgroundColor,
       radius: getComputedStyle(element).borderTopLeftRadius,
@@ -43,32 +39,23 @@ for (const viewport of widths) {
   });
 }
 
-test("switching to dark theme keeps the status and document list labels in agreement", async ({ page }) => {
+test("clicking the backdrop cancels the delete modal and keeps the document", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await open(page);
-  expect(await statusAndListLabel(page)).toEqual({ status: "Source example — not yet saved", list: "Source example" });
-  await page.getByRole("button", { name: "Use dark theme", exact: true }).click();
-  await expect(page.locator('.editor-app[data-theme="dark"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "Use light theme", exact: true })).toBeEnabled();
-  // A theme preference is not a document save: welcome.md is still the untouched source example.
-  expect(await statusAndListLabel(page)).toEqual({ status: "Source example — not yet saved", list: "Source example" });
+  await page.getByRole("button", { name: "Delete document", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete this document?" });
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(20, 500);
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel("Document Name", { exact: true })).toHaveValue("welcome.md");
 });
 
-test("opening another source example keeps the status and document list labels in agreement", async ({ page }) => {
+test("an empty document name is refused with a message and focus on the name", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await open(page);
-  await page.getByRole("button", { name: /untitled-document\.md/ }).click();
-  await expect(page.getByLabel("Document name", { exact: true })).toHaveValue("untitled-document.md");
-  expect(await statusAndListLabel(page)).toEqual({ status: "Source example — not yet saved", list: "Source example" });
-});
-
-test("a document saved by the user reads as saved in both the status and the list", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await open(page);
-  await page.getByRole("textbox", { name: "Markdown content" }).fill("# Mine now");
-  await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await expect(page.getByText("Saved in this browser.", { exact: true })).toBeVisible();
-  const labels = await statusAndListLabel(page);
-  expect(labels.status).toBe("Saved version");
-  expect(labels.list).not.toBe("Source example");
+  const name = page.getByLabel("Document Name", { exact: true });
+  await name.fill("   ");
+  await page.locator(".save-button").click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Give the document a name.");
+  await expect(name).toBeFocused();
 });

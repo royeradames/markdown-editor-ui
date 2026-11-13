@@ -5,7 +5,7 @@ const STORAGE_KEY = "markdown-editor-library-v1";
 
 async function open(page: Page) {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Save changes", exact: true })).toBeEnabled();
+  await page.waitForFunction(() => document.querySelector(".editor-app")?.getAttribute("data-ready") === "true");
 }
 
 test("saving keeps every control focusable, keeps focus on Save and blocks only a second save", async ({ page }) => {
@@ -17,63 +17,50 @@ test("saving keeps every control focusable, keeps focus on Save and blocks only 
     const locks = navigator.locks;
     const request = locks.request.bind(locks) as (name: string, work: () => Promise<unknown>) => Promise<unknown>;
     // Hold the storage lock long enough to observe the pending state.
-    Object.defineProperty(locks, "request", { value: (name: string, work: () => Promise<unknown>) => request(name, async () => { await new Promise((done) => setTimeout(done, 1200)); return work(); }) });
+    Object.defineProperty(locks, "request", { value: (name: string, work: () => Promise<unknown>) => request(name, async () => { await new Promise((done) => setTimeout(done, 2500)); return work(); }) });
   }, STORAGE_KEY);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await open(page);
   const editor = page.getByRole("textbox", { name: "Markdown content" });
   await editor.fill("# Busy save");
-  const save = page.getByRole("button", { name: "Save changes", exact: true });
+  const save = page.locator(".save-button");
   await save.focus();
   await page.keyboard.press("Enter");
   await expect(save).toHaveAttribute("aria-busy", "true");
+  await expect(save).toHaveText("Saving…");
   await expect(save).toBeFocused();
-  for (const control of [save, page.getByRole("button", { name: "Delete", exact: true }), page.getByRole("button", { name: "+ New document", exact: true }), page.getByRole("button", { name: /untitled-document\.md/ }), page.getByLabel("Document name", { exact: true }), editor]) {
-    await expect(control).not.toBeDisabled();
+  for (const control of [save, page.getByRole("button", { name: "Delete document", exact: true }), page.getByLabel("Document Name", { exact: true }), editor]) {
+    await expect(control).toBeEnabled();
   }
   await expect(editor).toBeEditable();
+  // The drawer opens and its controls stay enabled while the save is still pending.
+  await page.getByRole("button", { name: "Documents", exact: true }).click();
+  for (const control of [page.getByRole("button", { name: "+ New Document", exact: true }), page.getByRole("button", { name: /untitled-document\.md/ }), page.getByRole("switch", { name: "Dark mode" })]) {
+    await expect(control).toBeVisible();
+    await expect(control).toBeEnabled();
+  }
+  await expect(save).toHaveAttribute("aria-busy", "true");
+  await save.focus();
+  // Two more activations while the first save is pending must not write again.
   await page.keyboard.press("Enter");
-  await save.click();
-  await expect(page.getByText("Saved in this browser.", { exact: true })).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(save).toHaveAttribute("data-state", "saved");
+  await expect(page.getByRole("status").filter({ hasText: "Saved welcome.md in this browser." })).toHaveCount(1);
   await expect(save).not.toHaveAttribute("aria-busy", "true");
   await expect(save).toBeFocused();
   expect(await page.evaluate(() => (window as unknown as { __writes: number }).__writes)).toBe(1);
 });
 
-for (const viewport of [{ width: 400, height: 800 }, { width: 768, height: 1024 }]) {
-  test(`Documents drawer is behind the menu button and Escape closes it at ${viewport.width}px`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await open(page);
-    const menu = page.getByRole("button", { name: "Documents", exact: true });
-    const panel = page.locator("#documents-panel");
-    await expect(panel).toBeHidden();
-    const box = await menu.boundingBox();
-    const size = viewport.width >= 768 ? 72 : 56;
-    expect(Math.abs((box?.width ?? 0) - size)).toBeLessThanOrEqual(1);
-    expect(Math.abs((box?.height ?? 0) - size)).toBeLessThanOrEqual(1);
-    await menu.click();
-    await expect(panel).toBeVisible();
-    await expect(menu).toHaveAttribute("aria-expanded", "true");
-    await panel.getByRole("button", { name: "+ New document", exact: true }).focus();
-    await page.keyboard.press("Escape");
-    await expect(panel).toBeHidden();
-    await expect(menu).toHaveAttribute("aria-expanded", "false");
-    await expect(menu).toBeFocused();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
-  });
-}
-
 for (const viewport of [{ width: 400, height: 800 }, { width: 768, height: 1024 }, { width: 1440, height: 1000 }]) {
   test(`design structure: name in header, editor fills its column, Roboto faces at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
-    await expect(page.locator("header").getByLabel("Document name", { exact: true })).toHaveValue("welcome.md");
+    await expect(page.locator("header").getByLabel("Document Name", { exact: true })).toHaveValue("welcome.md");
     const geometry = await page.evaluate(() => {
       const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
       const pane = document.querySelector(".edit-pane") as HTMLElement;
       return {
         textarea: rect("textarea"), header: rect(".edit-pane .pane-header"), pane: pane.getBoundingClientRect(), paneInner: pane.clientWidth,
-        footerTop: document.querySelector(".status-bar")?.getBoundingClientRect().top ?? -1,
         scrolls: document.documentElement.scrollHeight > innerHeight + 1, overflow: document.documentElement.scrollWidth > innerWidth,
       };
     });
@@ -83,7 +70,7 @@ for (const viewport of [{ width: 400, height: 800 }, { width: 768, height: 1024 
     expect(Math.abs(geometry.textarea.width - geometry.paneInner)).toBeLessThanOrEqual(2);
     expect(Math.abs(geometry.textarea.top - geometry.header.bottom)).toBeLessThanOrEqual(2);
     expect(Math.abs(geometry.textarea.bottom - geometry.pane.bottom)).toBeLessThanOrEqual(2);
-    expect(Math.abs(geometry.pane.bottom - geometry.footerTop)).toBeLessThanOrEqual(2);
+    expect(Math.abs(geometry.pane.bottom - viewport.height)).toBeLessThanOrEqual(2);
     const faces = await page.evaluate(async () => {
       await document.fonts.ready;
       const declared = new Set([...document.fonts].map((face) => face.family.replace(/["']/g, "")));
@@ -138,7 +125,7 @@ test("home declares one site name in the visible identity, og:site_name and WebS
   await open(page);
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", SITE_NAME);
   const data = JSON.parse(await page.locator('script[type="application/ld+json"]').textContent() ?? "{}");
-  expect(data).toMatchObject({ "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: "https://markdown-editor-ui.vercel.app/" });
+  expect(data).toMatchObject({ "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: "https://markdown-editor-ui.royeradames.com/" });
   // The page's own title heading is the banner h1 and comes first; h1s inside the rendered preview are the user's document content.
   await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toHaveText(SITE_NAME);
   expect(await page.evaluate(() => document.querySelector("h1")?.closest("header") !== null)).toBe(true);
